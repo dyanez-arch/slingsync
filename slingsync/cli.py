@@ -28,6 +28,8 @@ def main(argv=None):
                     help="also leave out channels that are silent in individual files")
     ap.add_argument("--min-votes", type=int, default=12, help="match strictness (default 12)")
     ap.add_argument("--workers", type=int, help="files analysed at once")
+    ap.add_argument("-v", "--verbose", action="store_true",
+                    help="print details for every file, match and placement")
     ap.add_argument("--clear-cache", action="store_true", help="re-analyse every file")
     ap.add_argument("--version", action="version", version=f"SlingSync {__version__}")
     a = ap.parse_args(argv)
@@ -52,7 +54,8 @@ def main(argv=None):
         res = run(a.project, ref_channels=ref, fps=a.fps, keep_silent=a.keep_silent,
                   skip_silent_clips=a.skip_silent_clips, silence_db=a.silence_db,
                   flat_db=a.flat_db, min_votes=a.min_votes, workers=a.workers,
-                  output=a.output, name=a.name, clear_cache=a.clear_cache, progress=progress)
+                  output=a.output, name=a.name, clear_cache=a.clear_cache, progress=progress,
+                  log=(lambda m: print(m, flush=True)) if a.verbose else None)
     except (ValueError, Cancelled) as e:
         sys.exit(str(e) or "Cancelled")
     print()

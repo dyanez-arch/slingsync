@@ -250,7 +250,10 @@ def analyze(job):
     if os.path.exists(meta_p) and os.path.exists(fp_p):
         with open(meta_p) as fh:
             return json.load(fh)
-    nch = probe(path)["nch"]
+    info = probe(path)
+    if info is None:
+        raise OSError("file could not be opened")
+    nch = info["nch"]
     frame = int(0.05 * SR)
     # pass 1: per-channel loudness in 50 ms frames
     rms = []
@@ -268,11 +271,22 @@ def analyze(job):
         return meta
     db = 20 * np.log10(np.concatenate(rms) + 1e-12)
     gains = np.zeros(nch, np.float32)
+    quiet, flat = set(), set()
     for c in range(nch):
         p95, p10 = np.percentile(db[:, c], 95), np.percentile(db[:, c], 10)
         meta["levels_db"].append(round(float(p95), 1))
-        # silent = too quiet, OR flat noise with no dynamics (dead input / hiss only)
-        if p95 < silence_db or (p95 - p10) < flat_db:
+        if p95 < silence_db:
+            quiet.add(c)
+        elif (p95 - p10) < flat_db:
+            flat.add(c)
+    # Flat (no dynamics) channels are usually a dead input or hiss, so they're dropped
+    # when the file has livelier channels. But steady ambience (wind, sea, traffic at
+    # night) is also flat: if nothing livelier exists, keep and use the flat channels.
+    if flat and len(quiet | flat) == nch:
+        meta["note"] = "only steady/low-dynamics sound in this file"
+        flat = set()
+    for c in range(nch):
+        if c in quiet or c in flat:
             meta["silent"].append(c + 1)
         else:
             gains[c] = 1.0 / (10 ** (np.percentile(db[:, c], 90) / 20))
@@ -290,7 +304,9 @@ def analyze(job):
     # pass 2: equal-level mix of the non-silent channels
     w = np.zeros(nch, np.float32)
     w[used] = gains[used] / len(used)
-    mono = np.concatenate([blk @ w for blk in _blocks(path, frame * 400)]).astype(np.float32)
+    with np.errstate(all="ignore"):   # numpy 2.0 + Apple Accelerate raises spurious FP warnings
+        mono = np.concatenate([blk @ w for blk in _blocks(path, frame * 400)]).astype(np.float32)
+    mono = np.nan_to_num(mono, nan=0.0, posinf=0.0, neginf=0.0)
     np.save(mono_p, mono)
     h, t = fingerprint(mono)
     np.savez(fp_p, h=h, t=t)
@@ -442,13 +458,36 @@ def place(clips, edges):
     comp_of = {i: gi for gi, g in enumerate(groups) for i in g}
     devs = sorted({c["dev"] for c in clips})
 
-    def solve(conv):
+    def solve(conv, fallback=False):
         """Each device clock = audio timeline + constant. Blocks that share no sound
-        are positioned by those clocks (start- or end-of-recording dates, per device)."""
+        are positioned by those clocks (start- or end-of-recording dates, per device).
+
+        With fallback, devices that share no sound with anything placed are assumed to
+        have the same clock as the linked devices (or, if that puts them hours away from
+        the timeline, a wrong clock: they then start at the beginning of the timeline)."""
         obs = [(i, clips[i]["dev"], comp_of[i],
                 rel[i] - (clips[i]["date"] - (clips[i]["duration"] if conv[clips[i]["dev"]] else 0)))
                for i in range(n) if clips[i].get("date")]
         G, O = {0: 0.0}, {}
+        guessed = set()
+        while True:
+            iterate(obs, G, O)
+            todo = [d for d in devs if d not in O and any(dd == d for _, dd, _, _ in obs)]
+            if not fallback or not todo:
+                break
+            placed = [rel[i] - G[g] for i, _, g, _ in obs if g in G]
+            lo, hi = min(placed), max(placed)
+            d = todo[0]
+            dates = [rel[i] - y for i, dd, _, y in obs if dd == d]   # = adjusted dates
+            off = float(np.median(list(O.values())))
+            if max(dates) + off < lo - 6 * 3600 or min(dates) + off > hi + 6 * 3600:
+                off = lo - min(dates)
+            O[d] = off
+            guessed.add(d)
+        resid = sum(abs(y - G[g] - O[dd]) for i, dd, g, y in obs if g in G and dd in O)
+        return G, resid, guessed
+
+    def iterate(obs, G, O):
         for _ in range(40):
             changed = False
             for d in devs:
@@ -465,18 +504,16 @@ def place(clips, edges):
                     G[g] = new
             if not changed:
                 break
-        resid = sum(abs(y - G[g] - O[dd]) for i, dd, g, y in obs if g in G and dd in O)
-        return G, resid
 
     best = None
     combos = [dict(zip(devs, bits)) for bits in np.ndindex(*([2] * len(devs)))] \
         if len(devs) <= 8 else [dict.fromkeys(devs, 0)]
     for conv in combos:
-        G, resid = solve(conv)
+        G, resid, _ = solve(conv)
         score = (-len(G), round(resid, 3), sum(conv.values()))
         if best is None or score < best[0]:
-            best = (score, G)
-    G = best[1]
+            best = (score, conv)
+    G, _, guessed = solve(best[1], fallback=True)
     for gi, g in enumerate(groups):
         for i in g:
             if gi == 0:
@@ -486,6 +523,8 @@ def place(clips, edges):
                 clips[i]["start"] = rel[i] - G[gi]
                 clips[i]["status"] = "block placed by date" if len(g) > 1 else "placed by date"
                 clips[i]["block"] = len(g)
+                if clips[i]["dev"] in guessed and not clips[i]["note"]:
+                    clips[i]["note"] = "device shares no sound with the others; its clock is a guess"
     unplaced = [g for gi, g in enumerate(groups) if gi and gi not in G]
     end = max([clips[i]["start"] + clips[i]["duration"] for i in range(n) if "start" in clips[i]] or [0])
     cursor = end + 30
@@ -632,21 +671,40 @@ def tc(s):
     return f"{int(s // 3600):02d}:{int(s % 3600 // 60):02d}:{s % 60:06.3f}"
 
 
+SKIP_DIRS = {"proxies", "proxy", "adobe premiere pro auto-save", "adobe premiere pro video previews",
+             "adobe premiere pro audio previews", CACHE_DIR}
+
+
+def _is_proxy(fn):
+    stem = os.path.splitext(fn)[0].lower()
+    return stem.endswith("_proxy") or stem.endswith(" proxy")
+
+
 def scan_devices(project):
-    """List device subfolders and their media files (no decoding)."""
+    """List device subfolders and their media files (no decoding).
+
+    Skips hidden files, Premiere proxy folders/files (Proxies/, *_Proxy.*) and
+    Premiere auto-save/preview folders. Folders with no media are left out."""
     devices = sorted(d for d in os.listdir(project)
-                     if os.path.isdir(os.path.join(project, d)) and not d.startswith("."))
+                     if os.path.isdir(os.path.join(project, d)) and not d.startswith(".")
+                     and d.lower() not in SKIP_DIRS)
     out = []
     for dname in devices:
-        files = []
+        files, proxies = [], 0
         for root, dirs, fnames in os.walk(os.path.join(project, dname)):
-            dirs[:] = sorted(x for x in dirs if not x.startswith("."))
+            proxies += sum(1 for x in dirs if x.lower() in SKIP_DIRS)
+            dirs[:] = sorted(x for x in dirs if not x.startswith(".") and x.lower() not in SKIP_DIRS)
             for fn in sorted(fnames):
                 ext = os.path.splitext(fn)[1].lower()
-                if not fn.startswith(".") and ext in VIDEO_EXT | AUDIO_EXT:
-                    files.append(os.path.join(root, fn))
-        out.append({"name": dname, "files": files,
-                    "camera": any(os.path.splitext(f)[1].lower() in VIDEO_EXT for f in files)})
+                if fn.startswith(".") or ext not in VIDEO_EXT | AUDIO_EXT:
+                    continue
+                if _is_proxy(fn):
+                    proxies += 1
+                    continue
+                files.append(os.path.join(root, fn))
+        if files:
+            out.append({"name": dname, "files": files, "skipped_proxy_items": proxies,
+                        "camera": any(os.path.splitext(f)[1].lower() in VIDEO_EXT for f in files)})
     return out
 
 
@@ -662,12 +720,14 @@ def device_channels(files, sample=3):
 
 def run(project, ref_channels=None, fps=None, keep_silent=False, skip_silent_clips=False,
         silence_db=-60.0, flat_db=3.0, min_votes=12, workers=None, output=None, name=None,
-        clear_cache=False, progress=None, cancel=None):
+        clear_cache=False, progress=None, cancel=None, log=None):
     """Sync a project folder (one subfolder per device). Returns a result dict.
 
     progress(fraction 0..1, message) is called along the way; set the threading.Event
-    `cancel` to stop early (raises Cancelled)."""
+    `cancel` to stop early (raises Cancelled). log(text), if given, receives detailed
+    diagnostics (per-file analysis, every match, placement)."""
     say = progress or (lambda f, m: None)
+    log = log or (lambda s: None)
     ref_channels = ref_channels or {}
     project = os.path.abspath(project)
     if not os.path.isdir(project):
@@ -684,6 +744,9 @@ def run(project, ref_channels=None, fps=None, keep_silent=False, skip_silent_cli
                          "files in its own subfolder inside the project folder.")
     if not files:
         raise ValueError("No video or audio files found in the device subfolders.")
+    for d in devs:
+        log(f"Device {d['name']}: {len(d['files'])} files ({'camera' if d['camera'] else 'audio'})"
+            + (f", skipped {d['skipped_proxy_items']} proxy files/folders" if d["skipped_proxy_items"] else ""))
 
     clips, skipped = [], []
     with ThreadPoolExecutor(8) as ex:
@@ -728,6 +791,10 @@ def run(project, ref_channels=None, fps=None, keep_silent=False, skip_silent_cli
                 try:
                     meta = f.result()
                 except Exception as e:
+                    if not os.path.isdir(project):
+                        raise ValueError(
+                            "The drive or folder went offline during the sync. Reconnect it and "
+                            "sync again: files already analysed are saved and won't be redone.")
                     meta = {"note": f"could not analyse audio ({e})"}
                 c["silent"], c["used"] = meta.get("silent", []), meta.get("used", [])
                 c["note"] = meta.get("note", "")
@@ -737,6 +804,10 @@ def run(project, ref_channels=None, fps=None, keep_silent=False, skip_silent_cli
                     c["fp_h"], c["fp_t"] = z["h"], z["t"]
                 say(0.07 + 0.70 * done / max(1, len(jobs)),
                     f"Analysing audio ({done}/{len(jobs)})")
+                log(f"  {c['rel']}: {c['duration']:.1f}s, {c['nch']} ch, levels dB {meta.get('levels_db')}, "
+                    f"silent {c['silent']}, used {c['used']}, "
+                    f"{len(c.get('fp_h', []))} hashes, date {datetime.datetime.fromtimestamp(c['date']):%Y-%m-%d %H:%M:%S} "
+                    f"({c['date_src']})" + (f", NOTE {c['note']}" if c["note"] else ""))
         except Cancelled:
             for f in futs:
                 f.cancel()
@@ -755,10 +826,19 @@ def run(project, ref_channels=None, fps=None, keep_silent=False, skip_silent_cli
         _check(cancel)
         if k % 10 == 0:
             say(0.90 + 0.07 * k / max(1, len(edges)), f"Fine-tuning sync ({k}/{len(edges)})")
+        coarse = e["off"]
         e["off"], e["refined"] = refine(mono(e["a"]), mono(e["b"]), e["off"])
+        log(f"  match {clips[e['a']]['rel']} -> {clips[e['b']]['rel']}: offset {e['off']:+.4f}s, "
+            f"{e['votes']} votes, {'refined' if e['refined'] else 'NOT refined'} "
+            f"(coarse {coarse:+.3f}s)")
 
     say(0.97, "Building timeline...")
+    log(f"{len(edges)} matches between devices")
     conflicts = place(clips, edges)
+    for e in conflicts:
+        log(f"  CONFLICT {clips[e['a']]['rel']} <-> {clips[e['b']]['rel']}")
+    for c in sorted(clips, key=lambda c: c["start"]):
+        log(f"  {tc(c['start'])}  {c['status']:<22} {c['rel']}")
     seq_fps = fps or next((c["fps"] for c in clips if c["has_video"]), 25.0)
     xml, lane_info, nv, na = build_xml(clips, devices, name, seq_fps, keep_silent,
                                        skip_silent_clips)
