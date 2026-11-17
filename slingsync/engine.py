@@ -475,11 +475,11 @@ def place(clips, edges):
             todo = [d for d in devs if d not in O and any(dd == d for _, dd, _, _ in obs)]
             if not fallback or not todo:
                 break
-            placed = [rel[i] - G[g] for i, _, g, _ in obs if g in G]
+            placed = [rel[i] - G[g] for i, _, g, _ in obs if g in G] or [rel[i] for i in groups[0]]
             lo, hi = min(placed), max(placed)
             d = todo[0]
             dates = [rel[i] - y for i, dd, _, y in obs if dd == d]   # = adjusted dates
-            off = float(np.median(list(O.values())))
+            off = float(np.median(list(O.values()))) if O else lo - min(dates)
             if max(dates) + off < lo - 6 * 3600 or min(dates) + off > hi + 6 * 3600:
                 off = lo - min(dates)
             O[d] = off
@@ -533,6 +533,8 @@ def place(clips, edges):
         for i in g:
             clips[i]["start"] = cursor + rel[i] - base
             clips[i]["status"] = "NOT PLACED"
+            if clips[i].get("proxy") and not clips[i]["note"]:
+                clips[i]["note"] = "proxy with no shared sound (proxy dates can't be trusted)"
         cursor = max(clips[i]["start"] + clips[i]["duration"] for i in g) + 10
     t0 = min(c["start"] for c in clips)
     for c in clips:
@@ -671,39 +673,45 @@ def tc(s):
     return f"{int(s // 3600):02d}:{int(s % 3600 // 60):02d}:{s % 60:06.3f}"
 
 
-SKIP_DIRS = {"proxies", "proxy", "adobe premiere pro auto-save", "adobe premiere pro video previews",
+SKIP_DIRS = {"adobe premiere pro auto-save", "adobe premiere pro video previews",
              "adobe premiere pro audio previews", CACHE_DIR}
+PROXY_SUFFIXES = ("_proxy", " proxy", "-proxy")
 
 
-def _is_proxy(fn):
-    stem = os.path.splitext(fn)[0].lower()
-    return stem.endswith("_proxy") or stem.endswith(" proxy")
+def proxy_base(fn):
+    """'CAShoe_0747_Proxy.mov' -> 'cashoe_0747'; None if the name isn't a proxy's."""
+    stem = os.path.splitext(os.path.basename(fn))[0].lower()
+    for suf in PROXY_SUFFIXES:
+        if stem.endswith(suf):
+            return stem[:-len(suf)]
+    return None
 
 
 def scan_devices(project):
     """List device subfolders and their media files (no decoding).
 
-    Skips hidden files, Premiere proxy folders/files (Proxies/, *_Proxy.*) and
-    Premiere auto-save/preview folders. Folders with no media are left out."""
+    Skips hidden files and Premiere auto-save/preview folders. Proxies (Premiere's
+    *_Proxy files) are skipped when their original is also in the device folder, and
+    used when it isn't. Folders with no media are left out."""
     devices = sorted(d for d in os.listdir(project)
                      if os.path.isdir(os.path.join(project, d)) and not d.startswith(".")
                      and d.lower() not in SKIP_DIRS)
     out = []
     for dname in devices:
-        files, proxies = [], 0
+        found = []
         for root, dirs, fnames in os.walk(os.path.join(project, dname)):
-            proxies += sum(1 for x in dirs if x.lower() in SKIP_DIRS)
             dirs[:] = sorted(x for x in dirs if not x.startswith(".") and x.lower() not in SKIP_DIRS)
             for fn in sorted(fnames):
                 ext = os.path.splitext(fn)[1].lower()
-                if fn.startswith(".") or ext not in VIDEO_EXT | AUDIO_EXT:
-                    continue
-                if _is_proxy(fn):
-                    proxies += 1
-                    continue
-                files.append(os.path.join(root, fn))
+                if not fn.startswith(".") and ext in VIDEO_EXT | AUDIO_EXT:
+                    found.append(os.path.join(root, fn))
+        originals = {os.path.splitext(os.path.basename(f))[0].lower()
+                     for f in found if proxy_base(f) is None}
+        files = [f for f in found if proxy_base(f) not in originals]
         if files:
-            out.append({"name": dname, "files": files, "skipped_proxy_items": proxies,
+            out.append({"name": dname, "files": files,
+                        "skipped_proxies": len(found) - len(files),
+                        "proxies_used": sum(1 for f in files if proxy_base(f) is not None),
                         "camera": any(os.path.splitext(f)[1].lower() in VIDEO_EXT for f in files)})
     return out
 
@@ -746,7 +754,8 @@ def run(project, ref_channels=None, fps=None, keep_silent=False, skip_silent_cli
         raise ValueError("No video or audio files found in the device subfolders.")
     for d in devs:
         log(f"Device {d['name']}: {len(d['files'])} files ({'camera' if d['camera'] else 'audio'})"
-            + (f", skipped {d['skipped_proxy_items']} proxy files/folders" if d["skipped_proxy_items"] else ""))
+            + (f", skipped {d['skipped_proxies']} proxies (originals present)" if d["skipped_proxies"] else "")
+            + (f", using {d['proxies_used']} proxies (no originals)" if d["proxies_used"] else ""))
 
     clips, skipped = [], []
     with ThreadPoolExecutor(8) as ex:
@@ -759,7 +768,10 @@ def run(project, ref_channels=None, fps=None, keep_silent=False, skip_silent_cli
                 skipped.append(path)
                 continue
             info.update(dev=d, idx=len(clips), name=os.path.basename(path),
-                        rel=os.path.relpath(path, project))
+                        rel=os.path.relpath(path, project), proxy=proxy_base(path) is not None)
+            if info["proxy"]:
+                # a proxy's dates are when it was transcoded, not when it was shot
+                info["date"], info["date_src"] = None, "proxy (date ignored)"
             clips.append(info)
     if not clips:
         raise ValueError("None of the files could be read.")
@@ -806,7 +818,7 @@ def run(project, ref_channels=None, fps=None, keep_silent=False, skip_silent_cli
                     f"Analysing audio ({done}/{len(jobs)})")
                 log(f"  {c['rel']}: {c['duration']:.1f}s, {c['nch']} ch, levels dB {meta.get('levels_db')}, "
                     f"silent {c['silent']}, used {c['used']}, "
-                    f"{len(c.get('fp_h', []))} hashes, date {datetime.datetime.fromtimestamp(c['date']):%Y-%m-%d %H:%M:%S} "
+                    f"{len(c.get('fp_h', []))} hashes, date {datetime.datetime.fromtimestamp(c['date']).strftime('%Y-%m-%d %H:%M:%S') if c['date'] else '-'} "
                     f"({c['date_src']})" + (f", NOTE {c['note']}" if c["note"] else ""))
         except Cancelled:
             for f in futs:
