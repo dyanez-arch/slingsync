@@ -13,9 +13,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # macos-14 = Apple Silicon. For an Intel build, add an Intel macOS runner here
+        # macos-15 = Apple Silicon. For an Intel build, add an Intel macOS runner here
         # (check GitHub's current runner list for the label).
-        runner: [macos-14]
+        runner: [macos-15]
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4

@@ -69,7 +69,7 @@ The architecture of the build matches the machine (or runner) it's built on.
    git push origin v1.0.1
    ```
 
-The **Build Mac app** workflow runs on any `v*` tag. On a `macos-14` (Apple Silicon) runner it installs requirements, smoke-tests with `python -m slingsync --help`, runs `build_mac.sh`, uploads the DMG as a workflow artifact, and creates a GitHub Release with the DMG attached.
+The **Build Mac app** workflow runs on any `v*` tag. On a `macos-15` (Apple Silicon) runner it installs requirements, smoke-tests with `python -m slingsync --help`, runs `build_mac.sh`, uploads the DMG as a workflow artifact, and creates a GitHub Release with the DMG attached.
 
 It can also be run by hand from the **Actions** tab (`workflow_dispatch`). That builds the DMG as an artifact but doesn't create a release.
 
