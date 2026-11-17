@@ -4,6 +4,10 @@
 
 Drop in a folder of clips from any number of cameras and audio recorders, and SlingSync lines them all up by matching their audio, then hands you an XML that opens in Premiere as a ready-synced sequence. It's built for real documentary shoots: hundreds of clips, recorders stopping and starting, cameras rolling in bursts, multichannel WAVs with dead channels.
 
+## Documentation
+
+Full guides are in [`docs/`](docs/README.md): [user guide](docs/user-guide.md), [command line](docs/command-line.md), [how it works](docs/how-it-works.md), [development](docs/development.md) and [troubleshooting](docs/troubleshooting.md).
+
 ## Download
 
 Get the latest `.dmg` from the [Releases](../../releases) page, open it, and drag **SlingSync** into Applications.
