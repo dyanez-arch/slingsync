@@ -9,6 +9,7 @@ import datetime
 import hashlib
 import json
 import os
+import re
 import shutil
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import quote
@@ -331,21 +332,34 @@ def _gcc(A, B, offs, s, L, m):
 
 
 def refine(A, B, off_s):
-    """Sample-accurate offset (start_B - start_A): GCC-PHAT on several windows of the
-    overlap around the coarse guess; accepted only if the windows agree."""
+    """Sample-accurate offset (start_B - start_A) by GCC-PHAT on several windows across
+    the overlap. Returns (offset_s, refined, drift_ms).
+
+    On long overlaps the two clocks usually drift slightly (a few ms per 10 minutes).
+    A steady drift is fitted with a line; the offset is the value at the middle of the
+    overlap, and drift_ms is the total change from start to end of the overlap."""
     offs = int(round(off_s * SR))
     s0, s1 = max(0, offs), min(len(A), offs + len(B))
     if s1 - s0 < SR:
-        return off_s, False
+        return off_s, False, 0.0
     L = min(s1 - s0, 8 * SR)
     m = int(0.06 * SR)
-    nwin = 1 if s1 - s0 < 2 * L else 5
-    starts = np.linspace(s0, s1 - L, nwin + 2)[1:-1] if nwin > 1 else [s0 + (s1 - s0 - L) // 2]
-    res = np.array([_gcc(A, B, offs, int(s), L, m) for s in starts])
-    med = int(np.median(res))
-    agree = np.sum(np.abs(res - med) <= 0.002 * SR)
-    ok = agree >= (1 if nwin == 1 else 3)
-    return (med / SR if ok else off_s), bool(ok)
+    if s1 - s0 < 2 * L:
+        return _gcc(A, B, offs, s0 + (s1 - s0 - L) // 2, L, m) / SR, True, 0.0
+    nwin = int(np.clip((s1 - s0) / (60 * SR), 5, 15))           # ~1 window per minute
+    starts = np.linspace(s0, s1 - L, nwin + 2)[1:-1]
+    res = np.array([_gcc(A, B, offs, int(s), L, m) for s in starts], float)
+    pos = (starts + L / 2 - (s0 + s1) / 2) / SR                   # seconds from overlap centre
+    good = np.abs(res - np.median(res)) <= 0.03 * SR              # drop windows with no real match
+    if good.sum() < 3:
+        return off_s, False, 0.0
+    slope, mid = np.polyfit(pos[good], res[good], 1)
+    resid = res[good] - (slope * pos[good] + mid)
+    inliers = np.abs(resid) <= 0.004 * SR                          # within 4 ms of the drift line
+    if inliers.sum() < max(3, 0.6 * nwin):
+        return off_s, False, 0.0
+    slope, mid = np.polyfit(pos[good][inliers], res[good][inliers], 1)
+    return float(mid / SR), True, float(slope * (s1 - s0) / SR / SR * 1000)
 
 
 def match_all(clips, min_votes, ratio, progress=None, cancel=None):
@@ -687,6 +701,45 @@ def proxy_base(fn):
     return None
 
 
+def _loose_device(fn):
+    """Guess a device name from a loose file's name: A005C002_... -> 'Cam A',
+    INTVW1T02.wav -> 'INTVW1T', DJI_0143.MP4 -> 'DJI'."""
+    stem = os.path.splitext(os.path.basename(fn))[0]
+    base = proxy_base(fn)
+    if base is not None:
+        stem = stem[:len(base)]
+    m = re.match(r"([A-Za-z])\d{3}C\d{3}", stem)          # ARRI / Blackmagic / Canon / RED-style
+    if m:
+        return f"Cam {m.group(1).upper()}"
+    m = re.match(r"(.*?\D)[_\- ]?\d+$", stem)               # NAME0001 / NAME_0001
+    if m and m.group(1).strip("_- "):
+        return m.group(1).strip("_- ")
+    return stem
+
+
+def _media_files(folder, recursive=True):
+    found = []
+    for root, dirs, fnames in os.walk(folder):
+        dirs[:] = sorted(x for x in dirs if not x.startswith(".") and x.lower() not in SKIP_DIRS)
+        for fn in sorted(fnames):
+            ext = os.path.splitext(fn)[1].lower()
+            if not fn.startswith(".") and ext in VIDEO_EXT | AUDIO_EXT:
+                found.append(os.path.join(root, fn))
+        if not recursive:
+            break
+    return found
+
+
+def _device_entry(name, found):
+    originals = {os.path.splitext(os.path.basename(f))[0].lower()
+                 for f in found if proxy_base(f) is None}
+    files = [f for f in found if proxy_base(f) not in originals]
+    return {"name": name, "files": files,
+            "skipped_proxies": len(found) - len(files),
+            "proxies_used": sum(1 for f in files if proxy_base(f) is not None),
+            "camera": any(os.path.splitext(f)[1].lower() in VIDEO_EXT for f in files)}
+
+
 def scan_devices(project):
     """List device subfolders and their media files (no decoding).
 
@@ -698,22 +751,16 @@ def scan_devices(project):
                      and d.lower() not in SKIP_DIRS)
     out = []
     for dname in devices:
-        found = []
-        for root, dirs, fnames in os.walk(os.path.join(project, dname)):
-            dirs[:] = sorted(x for x in dirs if not x.startswith(".") and x.lower() not in SKIP_DIRS)
-            for fn in sorted(fnames):
-                ext = os.path.splitext(fn)[1].lower()
-                if not fn.startswith(".") and ext in VIDEO_EXT | AUDIO_EXT:
-                    found.append(os.path.join(root, fn))
-        originals = {os.path.splitext(os.path.basename(f))[0].lower()
-                     for f in found if proxy_base(f) is None}
-        files = [f for f in found if proxy_base(f) not in originals]
-        if files:
-            out.append({"name": dname, "files": files,
-                        "skipped_proxies": len(found) - len(files),
-                        "proxies_used": sum(1 for f in files if proxy_base(f) is not None),
-                        "camera": any(os.path.splitext(f)[1].lower() in VIDEO_EXT for f in files)})
-    return out
+        entry = _device_entry(dname, _media_files(os.path.join(project, dname)))
+        if entry["files"]:
+            out.append(entry)
+    if out:
+        return out
+    # No device subfolders: group files lying in the project folder by their names.
+    groups = {}
+    for f in _media_files(project, recursive=False):
+        groups.setdefault(_loose_device(f), []).append(f)
+    return [e for e in (_device_entry(n, fs) for n, fs in sorted(groups.items())) if e["files"]]
 
 
 def device_channels(files, sample=3):
@@ -839,9 +886,10 @@ def run(project, ref_channels=None, fps=None, keep_silent=False, skip_silent_cli
         if k % 10 == 0:
             say(0.90 + 0.07 * k / max(1, len(edges)), f"Fine-tuning sync ({k}/{len(edges)})")
         coarse = e["off"]
-        e["off"], e["refined"] = refine(mono(e["a"]), mono(e["b"]), e["off"])
+        e["off"], e["refined"], e["drift_ms"] = refine(mono(e["a"]), mono(e["b"]), e["off"])
         log(f"  match {clips[e['a']]['rel']} -> {clips[e['b']]['rel']}: offset {e['off']:+.4f}s, "
-            f"{e['votes']} votes, {'refined' if e['refined'] else 'NOT refined'} "
+            f"{e['votes']} votes, {'refined' if e['refined'] else 'NOT refined'}, "
+            f"drift {e['drift_ms']:+.1f}ms "
             f"(coarse {coarse:+.3f}s)")
 
     say(0.97, "Building timeline...")
@@ -859,7 +907,7 @@ def run(project, ref_channels=None, fps=None, keep_silent=False, skip_silent_cli
         fh.write(xml)
     report_path = os.path.join(project, "SlingSync_report.txt")
     counts = write_report(report_path, name, seq_fps, nv, na, clips, lane_info,
-                          conflicts, skipped, project)
+                          conflicts, skipped, project, edges)
     say(1.0, "Done")
     need = [{"status": c["status"], "file": c["rel"], "at": tc(c["start"]), "note": c["note"]}
             for c in sorted(clips, key=lambda c: c["start"]) if c["status"] != "synced"]
@@ -868,7 +916,7 @@ def run(project, ref_channels=None, fps=None, keep_silent=False, skip_silent_cli
             "video_tracks": nv, "audio_tracks": na, "fps": seq_fps}
 
 
-def write_report(path, name, seq_fps, nv, na, clips, lane_info, conflicts, skipped, proj):
+def write_report(path, name, seq_fps, nv, na, clips, lane_info, conflicts, skipped, proj, edges=()):
     counts = {}
     for c in clips:
         counts[c["status"]] = counts.get(c["status"], 0) + 1
@@ -894,6 +942,18 @@ def write_report(path, name, seq_fps, nv, na, clips, lane_info, conflicts, skipp
             if c["status"] == "block placed by date":
                 why = why or f"block of {c['block']} clips"
             R.append(f"  [{c['status']}] {c['rel']}  at {tc(c['start'])}  {why}")
+        R.append("")
+    frame_ms = 1000 / seq_fps
+    drifting = [e for e in edges if abs(e.get("drift_ms", 0)) >= frame_ms / 4]
+    if drifting:
+        R.append("Clock drift (clips are lined up at the middle of each overlap, so the ends are")
+        R.append(f"off by half the drift; one frame here is {frame_ms:.0f} ms):")
+        for e in sorted(drifting, key=lambda e: -abs(e["drift_ms"])):
+            half = abs(e["drift_ms"]) / 2
+            verdict = "fine" if half < frame_ms / 2 else ("check the ends" if half < frame_ms
+                                                           else "OUT OF SYNC at the ends, cut and re-sync")
+            R.append(f"  {clips[e['a']]['rel']}  <->  {clips[e['b']]['rel']}: "
+                     f"{e['drift_ms']:+.0f} ms over the overlap, ends off by up to {half:.0f} ms ({verdict})")
         R.append("")
     if conflicts:
         R.append("Inconsistent matches (usually fine, but worth a look if something seems off):")
