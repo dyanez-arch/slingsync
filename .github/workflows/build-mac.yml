@@ -1,0 +1,39 @@
+name: Build Mac app
+
+on:
+  push:
+    tags: ["v*"]        # pushing a tag like v1.0.0 builds and publishes a release
+  workflow_dispatch:    # or run it by hand from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        # macos-14 = Apple Silicon. For an Intel build, add an Intel macOS runner here
+        # (check GitHub's current runner list for the label).
+        runner: [macos-14]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Quick check
+        run: |
+          python -m pip install -r requirements.txt
+          python -m slingsync --help
+      - name: Build app and installer
+        run: bash scripts/build_mac.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SlingSync-${{ matrix.runner }}
+          path: dist/*.dmg
+      - name: Attach to GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.dmg

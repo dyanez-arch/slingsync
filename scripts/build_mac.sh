@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Builds dist/SlingSync.app and a .dmg installer. Run on a Mac from the repo root:
+#   bash scripts/build_mac.sh
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+python3 -m pip install --upgrade pip
+python3 -m pip install -r requirements.txt pyinstaller
+
+# App icon (.icns) from assets/icon.png
+rm -rf build/icon.iconset && mkdir -p build/icon.iconset
+for s in 16 32 128 256 512; do
+  sips -z $s $s assets/icon.png --out "build/icon.iconset/icon_${s}x${s}.png" >/dev/null
+  sips -z $((s * 2)) $((s * 2)) assets/icon.png --out "build/icon.iconset/icon_${s}x${s}@2x.png" >/dev/null
+done
+iconutil -c icns build/icon.iconset -o build/SlingSync.icns
+
+# App bundle
+python3 -m PyInstaller --noconfirm --clean SlingSync.spec
+
+# Ad-hoc signature so Apple Silicon Macs will launch it (not notarised)
+codesign --force --deep --sign - dist/SlingSync.app
+
+# Disk image with a shortcut to Applications
+VERSION=$(python3 -c "import slingsync; print(slingsync.__version__)")
+ARCH=$(uname -m)
+[ "$ARCH" = "arm64" ] && LABEL="AppleSilicon" || LABEL="Intel"
+rm -rf build/dmg && mkdir -p build/dmg
+cp -R dist/SlingSync.app build/dmg/
+ln -s /Applications build/dmg/Applications
+DMG="dist/SlingSync-${VERSION}-macOS-${LABEL}.dmg"
+hdiutil create -volname "SlingSync" -srcfolder build/dmg -ov -format UDZO "$DMG"
+echo "Built $DMG"
