@@ -7,3 +7,6 @@
 | [How it works](how-it-works.md) | The sync pipeline in detail: analysis, fingerprinting, matching, placement, XML |
 | [Development](development.md) | Code layout, running from source, building the app, publishing releases |
 | [Troubleshooting](troubleshooting.md) | Common problems and what to do about them |
+| [Testing log](testing.md) | What has been tested on real footage and in Premiere, and what hasn't yet |
+
+See also the [changelog](../CHANGELOG.md).
