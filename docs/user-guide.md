@@ -26,11 +26,33 @@ Rules:
 
 - Every file inside a device folder, at any depth, is treated as coming from that device.
 - Files and folders starting with `.` are ignored.
-- Files directly in the project folder (not in a subfolder) are ignored.
+- Premiere's auto-save and preview folders are ignored.
 - Recognised video: `.mp4 .mov .mxf .mts .m2ts .avi .mkv .m4v .mpg .mpeg .3gp .insv .lrv`
 - Recognised audio: `.wav .bwf .aif .aiff .mp3 .m4a .flac .aac .ogg .caf`
 
 Keep each physical device in its own folder. SlingSync never tries to match two clips from the same device against each other, and it learns each device's clock separately.
+
+### Loose files (no subfolders)
+
+If the project folder has **no** device subfolders, SlingSync groups the files lying in it by their names instead:
+
+| File names | Grouped as |
+|---|---|
+| `A005C002_….mp4`, `A006C001_….mp4` | Cam A |
+| `B016C002_….mp4` | Cam B |
+| `INTVW1T01.wav`, `INTVW1T02.wav` | INTVW1T |
+| `DJI_0143.MP4`, `DJI_0144.MP4` | DJI |
+
+Check the device list before you click **Sync**. If the grouping is wrong, put the files into subfolders, which always takes priority. When subfolders exist, loose files next to them (such as an export) are ignored.
+
+### Proxies
+
+SlingSync recognises Premiere-style proxies (`…_Proxy.mov`, `…_proxy.mp4`, usually in a `Proxies` folder):
+
+- **Original and proxy both present:** the proxy is skipped and the original is used.
+- **Only the proxy present:** the proxy is used. The sequence will then point at the proxy files.
+
+A proxy's file date is when it was made, not when it was shot, so proxies are placed **by sound only**. A proxy that shares no sound with another device is parked at the end of the timeline (red) instead of being placed at a wrong time.
 
 ## 3. Sync
 
@@ -63,7 +85,7 @@ When it finishes, the window shows a summary and lists anything that needs check
 |---|---|---|
 | (none) | synced | Placed by sound |
 | Yellow | block placed by date | A group of clips synced to each other by sound, but sharing no sound with the main timeline. The group is positioned using device clocks |
-| Orange | placed by date | A single clip with no sound match, positioned using its device's clock |
+| Orange | placed by date | A single clip with no sound match, positioned using its device's clock. If a whole device shares no sound with the others, its clock is assumed to match theirs, or, if that's clearly wrong (e.g. a camera set to the wrong year), its first clip starts at the beginning of the timeline. The report notes "its clock is a guess" |
 | Red | NOT PLACED | No usable sound and no usable date. Parked after the end of the timeline |
 
 ## 5. The report
@@ -73,10 +95,17 @@ When it finishes, the window shows a summary and lists anything that needs check
 - A summary count per status, sequence frame rate and track counts.
 - **Tracks per device**: lanes and which channels were kept.
 - **CHECK THESE BY EYE**: every clip not synced by sound, with its timeline position.
+- **Clock drift**: how far each pair of long clips drifts apart, and whether that matters.
 - **Inconsistent matches**: pairs of clips whose sound match disagrees with the final solution by more than 80 ms. Usually harmless (e.g. repeated music), but look here if something is off.
 - **Silent channels** per file, and which channels were used for syncing.
 - **Unreadable files** that were skipped.
 - **All clips** with their timeline position and status.
+
+### Clock drift on long takes
+
+Cameras and recorders run at very slightly different speeds. Over a long take they drift apart by a few milliseconds every 10 minutes. SlingSync measures this and lines the clips up at the middle of the take, so the ends are off by only half the drift. The report's **Clock drift** section lists each pair and says whether it's fine. Anything under one frame of total drift is invisible in practice.
+
+Positions in the XML are whole frames, so any clip can also be up to half a frame off (20 ms at 25 fps).
 
 ## 6. Re-running
 

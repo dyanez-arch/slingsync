@@ -9,6 +9,9 @@ None of the files have a recognised extension. See the list in the [user guide](
 **macOS says the app is damaged or can't be opened**
 The app isn't notarised. Right-click → **Open**, or **System Settings → Privacy & Security → Open Anyway**. If macOS still refuses, run `xattr -dr com.apple.quarantine /Applications/SlingSync.app` in Terminal.
 
+**"The drive or folder went offline during the sync"**
+The drive disconnected while SlingSync was reading it. Bus-powered USB hard drives can drop out under sustained full-speed reading even when normal playback is fine. Try a different cable or port (directly on the Mac, not a hub), a powered hub, or copy the shoot to an SSD. Sync again afterwards: finished files are cached and won't be re-read.
+
 **A clip is "placed by date" but it clearly has sound**
 - The other devices may not have been recording at the same time. Check the report for gaps.
 - The sound may be too repetitive (music, machinery) to give a single clear offset.
@@ -26,6 +29,12 @@ Clips from that device overlap in time. This usually means files from two differ
 
 **A channel I need is missing from the timeline**
 It was judged silent in every file of that device. Untick **Leave out channels that are silent in every file of a device**, or use `--keep-silent`.
+
+**The report lists clock drift as "check the ends" or "OUT OF SYNC at the ends"**
+Two devices drifted more than half a frame over a long take. Lip sync is right in the middle and slips towards the ends. Cut the clip around the point where it slips and nudge it, or split very long recordings.
+
+**Devices were grouped wrongly (loose files)**
+SlingSync guesses devices from file names when there are no subfolders. Put each device's files into its own subfolder and sync again.
 
 **Media offline in Premiere**
 The XML uses absolute paths. Import it before moving or renaming the media or the drive. If you've moved things, re-run SlingSync from the new location.

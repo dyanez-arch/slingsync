@@ -25,11 +25,12 @@ slingsync PROJECT [options]
 | `--fps N` | first camera's rate | Sequence frame rate, e.g. `25`, `23.976`, `29.97` |
 | `--ref-channel DEVICE=N` | all live channels | Sync using only channel N of DEVICE. Repeat for several devices |
 | `--silence-db DB` | `-60` | A channel whose 95th-percentile loudness is below this (dBFS) counts as silent |
-| `--flat-db DB` | `3` | A channel whose loudness range (95th minus 10th percentile) is less than this counts as dead or hiss-only |
+| `--flat-db DB` | `3` | A channel whose loudness range (95th minus 10th percentile) is less than this counts as dead or hiss-only, unless every live channel in the file is like that (steady ambience), in which case they're used |
 | `--keep-silent` | off | Keep channels on the timeline even when they're silent in every file of a device |
 | `--skip-silent-clips` | off | Also leave out channels that are silent in individual files |
 | `--min-votes N` | `12` | Match strictness. Higher means fewer but more certain matches |
 | `--workers N` | CPU count − 1, max 6 | Files analysed at once |
+| `-v`, `--verbose` | off | Print details for every file (channels, levels, date), every match (offset, votes, drift) and the final placement. Useful when something didn't sync |
 | `--clear-cache` | off | Delete `.slingsync_cache` and re-analyse every file |
 | `--version` | | Print the version |
 
@@ -71,6 +72,6 @@ res = run("/path/to/project", fps=25, ref_channels={"Zoom F6": 3},
 print(res["xml"], res["counts"], res["need_check"])
 ```
 
-`run()` accepts the same settings as the CLI (`keep_silent`, `skip_silent_clips`, `silence_db`, `flat_db`, `min_votes`, `workers`, `output`, `name`, `clear_cache`) plus `cancel`, a `threading.Event` that stops the run by raising `slingsync.engine.Cancelled`.
+`run()` accepts the same settings as the CLI (`keep_silent`, `skip_silent_clips`, `silence_db`, `flat_db`, `min_votes`, `workers`, `output`, `name`, `clear_cache`) plus `log` (a function that receives the verbose lines) and `cancel`, a `threading.Event` that stops the run by raising `slingsync.engine.Cancelled`.
 
 It returns a dict with `xml`, `report`, `counts`, `need_check` (status, file, position, note for every clip not synced by sound), `files`, `skipped`, `devices`, `video_tracks`, `audio_tracks` and `fps`.

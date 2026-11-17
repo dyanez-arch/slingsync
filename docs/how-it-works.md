@@ -15,7 +15,9 @@ flowchart LR
 
 ## 1. Scan and probe
 
-`scan_devices()` lists each non-hidden subfolder of the project as a device and walks it for files with a recognised extension. A device is a *camera* if it has any video file.
+`scan_devices()` lists each non-hidden subfolder of the project as a device and walks it for files with a recognised extension. A device is a *camera* if it has any video file. Premiere auto-save and preview folders are skipped. A file named like a proxy (`…_proxy`) is skipped if a file with the original name exists in the same device. Otherwise it is used, with its date ignored.
+
+If there are no device subfolders, the files in the project folder are grouped by name (`_loose_device`): `A005C002…` becomes `Cam A`, and otherwise the name with its trailing number removed is used (`INTVW1T02` becomes `INTVW1T`).
 
 `probe()` opens each file with PyAV (FFmpeg libraries bundled, no system FFmpeg needed) and reads its duration, audio streams and channel counts, sample rate, video frame rate and size, and a **date hint**. The date hint comes from, in order of preference:
 
@@ -29,7 +31,7 @@ Unreadable files are skipped and listed in the report.
 
 Each file is decoded twice at **8 kHz**, streaming, so memory stays low on long files.
 
-**Pass 1, silence detection.** Per-channel RMS in 50 ms frames. A channel is *silent* if its 95th-percentile level is below `silence_db` (−60 dBFS), or if its dynamic range (95th minus 10th percentile) is under `flat_db` (3 dB). The second rule catches dead inputs and hiss-only channels that are loud but contain nothing.
+**Pass 1, silence detection.** Per-channel RMS in 50 ms frames. A channel is *silent* if its 95th-percentile level is below `silence_db` (−60 dBFS). It is *flat* if its dynamic range (95th minus 10th percentile) is under `flat_db` (3 dB), which catches dead inputs and hiss. Flat channels are dropped only when the file has at least one livelier channel. If everything live is flat (e.g. a camera mic recording steady night wind), the flat channels are used.
 
 **Pass 2, mono mix.** Live channels are normalised to their 90th-percentile level and averaged, so a hot lav doesn't drown out a quiet camera mic. If a reference channel is set and is live in this file, only that channel is used.
 
@@ -64,7 +66,9 @@ Each edge is refined to sample accuracy at 8 kHz (0.125 ms) with **GCC-PHAT** cr
 
 - Up to 5 windows of up to 8 s each are spread across the overlap, each searching ±60 ms around the coarse offset.
 - The cross-spectrum is limited to 150 Hz to 3.5 kHz and whitened with a softened PHAT weight (|R|^0.75).
-- The refined offset is the median of the windows, accepted only if at least 3 of 5 agree within 0.25 ms. Otherwise the coarse offset is kept.
+- Short overlaps use one window. Long ones use about one window per minute (5 to 15 windows).
+- Windows more than 30 ms from the median are discarded as non-matches. A straight line is fitted to the rest, refitted on the windows within 4 ms of it. A slope means the two clocks **drift**. The refined offset is the line's value at the **middle** of the overlap, and `drift_ms` is its total change across the overlap.
+- If too few windows fit the line (under 3, or under 60%), the coarse offset is kept.
 
 Overlaps shorter than 1 s aren't refined.
 
@@ -80,7 +84,7 @@ Overlaps shorter than 1 s aren't refined.
 - Offsets for devices and positions for groups are estimated together by alternating medians over every clip that has a date.
 - Some cameras stamp the **start** of a recording and some stamp the **end**. For up to 8 devices, SlingSync tries every start/end combination and keeps the one that places the most groups with the smallest error.
 
-Groups that can't be linked to any device clock are marked **NOT PLACED** and parked after the end of the timeline, 30 s after the last clip and then 10 s apart.
+Devices with no sound link to anything already placed are then given a guessed clock: the same as the linked devices, or, if that would put them more than 6 hours outside the timeline, their first clip at the timeline start. Their clips get the note "its clock is a guess". Groups that still can't be positioned (e.g. proxies, whose dates are ignored) are marked **NOT PLACED** and parked after the end of the timeline, 30 s after the last clip and then 10 s apart.
 
 Finally the whole timeline is shifted so the earliest clip starts at 0.
 

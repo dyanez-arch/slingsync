@@ -16,7 +16,7 @@ Get the latest `.dmg` from the [Releases](../../releases) page, open it, and dra
 
 ## How to use
 
-1. Make a project folder with **one subfolder per device**, named however you like:
+1. Make a project folder with **one subfolder per device**, named however you like. (Loose files with no subfolders also work: SlingSync groups them by file name.)
 
    ```
    Interview Day 1/
@@ -35,8 +35,10 @@ Anything that couldn't be synced by sound is listed in the app and in `SlingSync
 ## What it handles
 
 - **Any number of cameras, recorders and channels.** Each device gets its own track or tracks in the sequence, and each audio channel gets its own track.
-- **Silent and dead channels.** Channels that are too quiet, or that contain nothing but steady hiss, are ignored for syncing. Channels that are silent in every file of a device are left out of the timeline (optional).
+- **Silent and dead channels.** Channels that are too quiet, or that contain nothing but steady hiss while other channels have real sound, are ignored for syncing. Steady ambience is still used when it's all a clip has. Channels that are silent in every file of a device are left out of the timeline (optional).
 - **Clips with no shared sound.** For example, a camera rolling while every recorder was off. SlingSync learns each device's clock offset from the clips that did sync, then places these by their file dates and flags them. It also works out whether each camera stamps the start or the end of a recording.
+- **Proxies.** Premiere `_Proxy` files are skipped when the original is there, and used (synced by sound only) when it isn't.
+- **Clock drift.** Long takes are lined up at the middle, and any drift between devices is measured and reported.
 - **Re-runs.** Audio analysis is saved in a hidden `.slingsync_cache` folder inside the project, so changing options and syncing again is fast. Delete that folder when you're done with the project.
 
 **Sync using** (per device) lets you force syncing to a single channel, such as the ambient mic. The default, which mixes all live channels, is usually the most reliable.
@@ -49,7 +51,7 @@ slingsync "/path/to/Interview Day 1"
 slingsync --help
 ```
 
-Options include `--fps 25`, `--ref-channel "Zoom F6=3"`, `--keep-silent`, `--skip-silent-clips` and `--clear-cache`.
+Options include `--verbose` (details for every file and match), `--fps 25`, `--ref-channel "Zoom F6=3"`, `--keep-silent`, `--skip-silent-clips` and `--clear-cache`.
 
 ## How it works
 
