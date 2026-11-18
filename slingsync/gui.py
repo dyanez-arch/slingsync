@@ -169,7 +169,7 @@ class MainWindow(QMainWindow):
         tf.setPointSize(tf.pointSize() + 10)
         tf.setBold(True)
         title.setFont(tf)
-        sub = QLabel("Sync cameras and multitrack audio by sound. No timecode needed.")
+        sub = QLabel("Sync cameras and multitrack audio by sound. No timecode required.")
         sub.setObjectName("muted")
         lay.addWidget(title)
         lay.addWidget(sub)
@@ -294,6 +294,9 @@ class MainWindow(QMainWindow):
             kind = "Camera" if d["camera"] else "Audio"
             if d["channels"]:
                 kind += f" · {d['channels']} ch"
+            if d.get("proxies_used"):
+                kind += " · proxies" if d["proxies_used"] == len(d["files"]) else \
+                    f" · {d['proxies_used']} proxies"
             self.table.setItem(r, 2, QTableWidgetItem(kind))
             box = QComboBox()
             box.addItem(AUTO_CH)
@@ -302,12 +305,15 @@ class MainWindow(QMainWindow):
             box.setEnabled(d["channels"] > 1)
             self.table.setCellWidget(r, 3, box)
         if not devs:
-            self.status.setText("No subfolders found. Put each camera or recorder's files in "
-                                "its own subfolder inside this folder, then drop it again.")
+            self.status.setText("No video or audio files found. Put each camera or recorder's "
+                                "files in its own subfolder inside this folder, then drop it again.")
         elif total == 0:
             self.status.setText("No video or audio files found in the subfolders.")
         else:
-            self.status.setText(f"{total} files in {len(devs)} devices. Ready to sync.")
+            loose = not any(os.path.isdir(os.path.join(self.folder or "", d["name"])) for d in devs)
+            self.status.setText(f"{total} files in {len(devs)} devices. Ready to sync."
+                                + ("  No device subfolders, so devices were guessed from file "
+                                   "names: check the list." if loose else ""))
             self.sync_btn.setEnabled(True)
 
     # ---- syncing ----
@@ -363,8 +369,9 @@ class MainWindow(QMainWindow):
         self.check_list.clear()
         if need:
             self.check_label.setText(f"<b>Check these by eye ({len(need)}):</b> they share no sound "
-                                     "with the rest, so they were placed by file date or parked "
-                                     "at the end. Details in the report.")
+                                     "with another device, so they were placed by their device's "
+                                     "clock (orange) or parked at the end (red). Details in the "
+                                     "report.")
             for n in need:
                 note = f" ({n['note']})" if n["note"] else ""
                 self.check_list.addItem(f"{n['at']}   {n['status']}   {n['file']}{note}")

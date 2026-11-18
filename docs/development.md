@@ -12,11 +12,23 @@ slingsync/
     gui.py                 PySide6 desktop app
 assets/icon.png            app icon source (converted to .icns at build time)
 scripts/build_mac.sh       builds dist/SlingSync.app and a .dmg
+scripts/make_test_project.py   synthetic project with known answers (regression test)
 SlingSync.spec             PyInstaller spec
 .github/workflows/build-mac.yml   CI build and release
 ```
 
-The GUI and CLI are thin. Everything else is in `engine.py`, documented in [How it works](how-it-works.md).
+The GUI and CLI are thin. Everything else is in `engine.py`, documented in [How it works](how-it-works.md). Main entry points, in pipeline order:
+
+| Function | Does |
+|---|---|
+| `scan_devices` | Finds devices (subfolders, or loose files grouped by name), skips proxies whose originals are present |
+| `probe` / `_date_candidates` / `_parse_tc` | Reads duration, streams, channels, fps, timecode and every date hint |
+| `resolve_dates` | Picks each clip's date: recorder clock > timecode > metadata > file date, with proxy and record-run rules |
+| `analyze` | Silence/flat-channel detection, mono mix, fingerprint (cached) |
+| `match_all` | Fingerprint voting across devices → coarse offsets |
+| `refine` | GCC-PHAT, drift-tolerant → sample-accurate offset + drift |
+| `place` | Drops false matches, least squares, local device clocks, statuses |
+| `build_xml` / `write_report` | Output |
 
 ### GUI structure
 
@@ -40,6 +52,24 @@ Dependencies: `numpy`, `scipy`, `av` (PyAV, which bundles FFmpeg), `PySide6`. No
 
 > The loose `slingsync.py` outside this repo is the earlier single-file version. It shells out to `ffmpeg`/`ffprobe`, and is superseded by this package.
 
+## Testing and debugging
+
+There's no automated test suite yet. What's been run on real footage is recorded in the [testing log](testing.md); please add to it.
+
+**Synthetic regression test.** Run this after any change to matching or placement. It takes about 10 seconds:
+
+```bash
+python scripts/make_test_project.py /tmp/synth && slingsync -v /tmp/synth
+python scripts/make_test_project.py /tmp/synth --camb-clock-off 94608000 && slingsync -v /tmp/synth
+python scripts/make_test_project.py /tmp/synth --proxies && slingsync -v /tmp/synth
+```
+
+Each run prints the expected clip positions. Compare them with the placement lines at the end of the verbose output. They should match exactly.
+
+**Real footage.** `slingsync -v <project>` prints every file's channels, levels, date and where the date came from, every match (offset, votes, refined or not, drift), dropped false matches, and the final placement. The report's **Device clocks** section shows how consistent each device's clock is with the sound. A sudden jump there usually means a clock change on set or a false match. Re-runs reuse `.slingsync_cache`, so iterating on placement logic takes seconds.
+
+**App.** The window can be driven without a display, e.g. `QT_QPA_PLATFORM=offscreen python -c "from slingsync import gui; ..."`, using `MainWindow.load_folder()` and `start_sync()`.
+
 ## Building the Mac app
 
 On a Mac:
@@ -60,13 +90,13 @@ The architecture of the build matches the machine (or runner) it's built on.
 
 ## Releasing
 
-1. Bump `__version__` in `slingsync/__init__.py`. This changes the app version, the DMG name and the cache key.
+1. Bump `__version__` in `slingsync/__init__.py`. This changes the app version, the DMG name and the cache key. Move the changelog's *Unreleased* section under the new version.
 2. Commit and push.
 3. Tag and push:
 
    ```bash
-   git tag v1.0.1
-   git push origin v1.0.1
+   git tag v1.1.0
+   git push origin v1.1.0
    ```
 
 The **Build Mac app** workflow runs on any `v*` tag. On a `macos-15` (Apple Silicon) runner it installs requirements, smoke-tests with `python -m slingsync --help`, runs `build_mac.sh`, uploads the DMG as a workflow artifact, and creates a GitHub Release with the DMG attached.

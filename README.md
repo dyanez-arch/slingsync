@@ -1,12 +1,24 @@
 # SlingSync
 
-**Free multicam sync for Premiere Pro, by sound. No timecode needed.**
+**Free multicam sync for Premiere Pro, by sound.**
 
 Drop in a folder of clips from any number of cameras and audio recorders, and SlingSync lines them all up by matching their audio, then hands you an XML that opens in Premiere as a ready-synced sequence. It's built for real documentary shoots: hundreds of clips, recorders stopping and starting, cameras rolling in bursts, multichannel WAVs with dead channels.
 
+**Timecode:** syncing by sound needs no timecode, slate or clap. Every clip that shares sound with another device is lined up from its audio alone. Clips that share *no* sound (cutaways, drone shots, a camera rolling while the recorder was off) can't be synced by sound. SlingSync places those using whatever clock information the files carry: recorder time, camera timecode if there is any, or file dates. Timecode makes those placements more reliable, but isn't required.
+
+## Status
+
+Tested on real documentary footage and checked in Premiere Pro. See the [testing log](docs/testing.md) for exactly what has been tested and what hasn't, and the [changelog](CHANGELOG.md) for what's changed.
+
+- ✅ A 79-minute interview: 2 cameras plus a 5-channel recorder, loose files, proxies.
+- ✅ A full-day site visit: 131 clips from 5 devices (2 cameras, recorder, GoPro, drone). The camera timecode was changed mid-day.
+- ⏳ Not yet tested: the packaged app on other Macs, original camera files on a large shoot, mixed frame rates, NAS drives, Intel Macs.
+
+The current release (v1.0.0) predates this testing. Until the next release, the improvements are only available by [running from source](docs/development.md#running-from-source).
+
 ## Documentation
 
-Full guides are in [`docs/`](docs/README.md): [user guide](docs/user-guide.md), [command line](docs/command-line.md), [how it works](docs/how-it-works.md), [development](docs/development.md) and [troubleshooting](docs/troubleshooting.md).
+Full guides are in [`docs/`](docs/README.md): [user guide](docs/user-guide.md), [command line](docs/command-line.md), [how it works](docs/how-it-works.md), [troubleshooting](docs/troubleshooting.md), [development](docs/development.md) and the [testing log](docs/testing.md).
 
 ## Download
 
@@ -30,14 +42,16 @@ Get the latest `.dmg` from the [Releases](../../releases) page, open it, and dra
 3. Check the device list, then click **Sync**.
 4. In Premiere, choose **File → Import…** and pick the `…_synced.xml` file that appears in the project folder.
 
-Anything that couldn't be synced by sound is listed in the app and in `SlingSync_report.txt`, so you only check those clips by eye.
+Anything that couldn't be synced by sound is marked orange (placed by its device's clock) or red (couldn't be placed), and listed in the app and in `SlingSync_report.txt`, so you only check those clips by eye.
 
 ## What it handles
 
 - **Any number of cameras, recorders and channels.** Each device gets its own track or tracks in the sequence, and each audio channel gets its own track.
 - **Silent and dead channels.** Channels that are too quiet, or that contain nothing but steady hiss while other channels have real sound, are ignored for syncing. Steady ambience is still used when it's all a clip has. Channels that are silent in every file of a device are left out of the timeline (optional).
 - **Clips with no shared sound.** For example, a camera rolling while every recorder was off, or a drone. SlingSync reads each device's clock (recorder time, camera timecode, file dates), checks it against the clips that did sync, and places these clips with it, flagged orange. It copes with clocks that are off by hours, with clocks that were changed mid-shoot (e.g. cameras re-jammed at lunch), and with cameras that stamp the end of a recording instead of the start.
-- **Proxies.** Premiere `_Proxy` files are skipped when the original is there, and used (synced by sound only) when it isn't.
+- **Proxies.** Premiere `_Proxy` files are skipped when the original is there, and used when it isn't. A proxy's own file date (the day it was transcoded) is never trusted, but timecode or an original shoot date carried inside it is.
+- **Loose files.** No subfolders? SlingSync guesses the devices from file names (e.g. `A005C002…` → Cam A).
+- **False matches.** A weak sound match that contradicts what the device clocks say is dropped.
 - **Clock drift.** Long takes are lined up at the middle, and any drift between devices is measured and reported.
 - **Re-runs.** Audio analysis is saved in a hidden `.slingsync_cache` folder inside the project, so changing options and syncing again is fast. Delete that folder when you're done with the project.
 
@@ -55,17 +69,21 @@ Options include `--verbose` (details for every file and match), `--fps 25`, `--r
 
 ## How it works
 
-1. Every audio channel is checked for silence or flat noise. The live channels are mixed at equal level.
+1. Every audio channel is checked for silence, or for a dead input that only carries hiss. The live channels are mixed at equal level.
 2. Each clip gets an audio fingerprint made of spectral peak pairs (the same idea Shazam uses). Matching fingerprints between devices vote for the time offset between clips. This is fast even with hundreds of clips and needs no rough positions to start from.
-3. Each match is refined to sample accuracy with GCC-PHAT cross-correlation on several windows of the overlap.
+3. Each match is refined to sample accuracy with GCC-PHAT cross-correlation across the overlap. Slow clock drift on long takes is measured.
 4. All matches are solved together with least squares, so small errors don't pile up along chains of clips.
-5. Groups that share no sound with the rest are positioned from the device clocks, as described above.
-6. A Final Cut Pro 7 XML is written, which Premiere imports.
+5. Clips and scenes that share no sound with the rest are positioned from each device's clock (recorder time, timecode or file date). Each clock is checked against the clips that did sync, and clock changes during the shoot are allowed.
+6. A Final Cut Pro 7 XML is written, which Premiere imports, along with a plain-text report.
+
+Details: [how it works](docs/how-it-works.md).
 
 ## Limitations
 
-- A clip needs some sound in common with another device to sync by audio. Silent B-roll and drone clips are placed by their device's clock only.
-- Positions in the XML are frame-accurate.
+- A clip needs some sound in common with another device to sync by audio. Silent B-roll and drone clips are placed by their device's clock only. That's only as good as the clock, and a device with no sound at all (e.g. a drone) has a clock nobody can check.
+- Positions in the XML are whole frames, so a clip can be up to half a frame off (20 ms at 25 fps). Sound-synced clips are otherwise accurate to about a millisecond.
+- If you sync proxies with no originals present, the sequence points at the proxies.
+- The analysis cache is written inside the project folder, so read-only drives aren't supported yet.
 - Apple Silicon builds are published. Intel Macs can run from source (`pip install .` then `slingsync-app`).
 
 ## Building the app yourself
@@ -76,7 +94,7 @@ On a Mac with Python 3.10 or newer:
 bash scripts/build_mac.sh
 ```
 
-This produces `dist/SlingSync.app` and a `.dmg`. Pushing a tag such as `v1.0.1` makes GitHub Actions build the DMG and attach it to a new release automatically.
+This produces `dist/SlingSync.app` and a `.dmg`. Pushing a tag such as `v1.1.0` makes GitHub Actions build the DMG and attach it to a new release automatically. See [development](docs/development.md).
 
 ## License
 

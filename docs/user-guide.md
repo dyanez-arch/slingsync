@@ -1,6 +1,6 @@
 # User guide
 
-SlingSync lines up clips from any number of cameras and audio recorders by matching their sound, then writes a Final Cut Pro 7 XML that Premiere Pro imports as a ready-synced sequence. No timecode or slate is needed.
+SlingSync lines up clips from any number of cameras and audio recorders by matching their sound, then writes a Final Cut Pro 7 XML that Premiere Pro imports as a ready-synced sequence. Syncing by sound needs no timecode or slate. Clips that share no sound with another device are placed using the files' own clock information (recorder time, camera timecode if present, or file dates).
 
 ## 1. Install
 
@@ -57,7 +57,7 @@ A proxy's own file date is when it was transcoded, so SlingSync never uses it. M
 ## 3. Sync
 
 1. Open SlingSync and drop the project folder on the window (or click **Choose Folder…**).
-2. Check the device table: name, number of files, Camera or Audio.
+2. Check the device table: name, number of files, Camera or Audio, channel count, and whether proxies are being used. If there were no subfolders, the devices were guessed from file names, so make sure they're right.
 3. Optionally set, per device, **Sync using**:
    - **All live channels (recommended)**: mixes every non-silent channel at equal level.
    - **Only channel N**: listen to one channel only, for example an ambient or scratch mic. If that channel is silent in a particular file, the other channels are used for that file.
@@ -72,7 +72,7 @@ When it finishes, the window shows a summary and lists anything that needs check
 
 ## 4. Import into Premiere
 
-**File → Import…** and choose `<project name>_synced.xml` in the project folder. Premiere creates a sequence that links to your original media in place. Don't move or rename the media before importing.
+**File → Import…** and choose `<project name>_synced.xml` in the project folder. Premiere creates a sequence that links to the media files in place: your originals, or the proxies if only proxies were in the folder. Don't move or rename the media before importing.
 
 ### Sequence layout
 
@@ -115,5 +115,7 @@ Audio analysis is cached in a hidden `.slingsync_cache` folder inside the projec
 
 - Have every camera record scratch audio, even a poor-quality on-camera mic.
 - Short clips (under ~1 second of overlap) can't be fine-tuned and are less reliable.
-- Set camera and recorder clocks roughly right before the shoot. Clips with no shared sound are positioned from these clocks, and a correct clock makes their placement much better.
+- Set camera and recorder clocks roughly right before the shoot, or jam timecode. Clips with no shared sound are positioned from these clocks. A clock that is wrong but *consistent* is fine, because SlingSync measures the error against the clips that did sync. If you re-jam or reset a clock mid-shoot, that's handled too.
 - Steady noise (fans, air-con, wind) alone is hard to match. Speech, music and handling sounds match well.
+- Sync original files when you can: their dates and channels are complete, and the sequence points at them.
+- Work from an SSD or a reliable drive. Bus-powered USB hard drives can disconnect under sustained reading.

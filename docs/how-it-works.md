@@ -4,18 +4,18 @@ All the work happens in `slingsync/engine.py`, in `run()`. The pipeline:
 
 ```mermaid
 flowchart LR
-  A[Scan device folders] --> B[Probe files]
+  A[Scan device folders<br/>proxies, loose files] --> B[Probe files<br/>pick best date per clip]
   B --> C[Analyse audio<br/>silence check, mono mix]
   C --> D[Fingerprint]
   D --> E[Match across devices]
-  E --> F[Refine with GCC-PHAT]
-  F --> G[Place: least squares<br/>+ device clocks]
+  E --> F[Refine with GCC-PHAT<br/>measure drift]
+  F --> G[Place: drop false matches,<br/>least squares, device clocks]
   G --> H[Write XML + report]
 ```
 
 ## 1. Scan and probe
 
-`scan_devices()` lists each non-hidden subfolder of the project as a device and walks it for files with a recognised extension. A device is a *camera* if it has any video file. Premiere auto-save and preview folders are skipped. A file named like a proxy (`…_proxy`) is skipped if a file with the original name exists in the same device. Otherwise it is used, with its date ignored.
+`scan_devices()` lists each non-hidden subfolder of the project as a device and walks it for files with a recognised extension. A device is a *camera* if it has any video file. Premiere auto-save and preview folders are skipped. A file named like a proxy (`…_proxy`) is skipped if a file with the original name exists in the same device. Otherwise it is used. Its own file date (the transcode date) is never used, but timecode or an original creation date inside it can be (see the date rules below).
 
 If there are no device subfolders, the files in the project folder are grouped by name (`_loose_device`): `A005C002…` becomes `Cam A`, and otherwise the name with its trailing number removed is used (`INTVW1T02` becomes `INTVW1T`).
 
