@@ -148,10 +148,11 @@ Generated with known offsets: 3 devices, steady ambience plus sparse events, a d
 - [x] Panel sync inside Premiere with its own engine (Kishorn, Borthwick)
 - [x] Compact Timeline in Premiere (Devon Night 2)
 - [x] 1.2.0b2 DMG (run 44355109228) installs and shows version 1.2.0b2 (2026-11-18)
+- [x] 1.2.0b2 app: Mark Borthwick syncs 3 of 3 with video (fix confirmed), and the compact timeline checkbox writes `…_compact.xml` (2026-11-18)
+- [x] Panel `.ccx` (0.10.3) installs by double-click and works in Premiere 2027 (2026-11-18)
 - [ ] Panel audio-file export inside Premiere (UXP `fs.write`)
 - [ ] Panel *Import a synced folder* link
 - [ ] Panel on a large shoot of original camera files (Devon comparison running)
-- [ ] Compact timeline XML from the app imported into Premiere
 - [ ] First launch on a second Mac, recording macOS's exact wording
 - [ ] Mixed frame rates in one project (23.976 / 25 / 29.97 / 50)
 - [ ] Variable-frame-rate phone footage

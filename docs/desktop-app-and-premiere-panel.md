@@ -8,9 +8,9 @@ SlingSync comes in two forms. They do the same job (line up cameras and recorder
 | Who it's for | Anyone: Premiere editors, other NLEs that read FCP7 XML, podcasters and audio editors (audio-only export) | Premiere Pro 2027+ editors who want to sync without leaving Premiere |
 | Needs Premiere? | No | Yes, Premiere Pro 2027 (27.0) or later |
 | Result | `…_synced.xml` you import, a report, optional aligned WAVs | The synced sequence appears directly in the open project |
-| Status | **Released** (v1.1.0), tested on real shoots | **Working prototype** (0.10): syncs inside Premiere on its own, not packaged yet |
+| Status | **Released** (v1.1.0), tested on real shoots | **Working prototype** (0.10): syncs inside Premiere on its own; installs from a `.ccx` |
 | Code | [`slingsync/`](../slingsync) (Python) | [`premiere-panel/`](../premiere-panel) (JavaScript + WebAssembly) |
-| Download | [Releases](https://github.com/dyanez-arch/slingsync/releases) page (`.dmg`) | Not packaged yet; developers can load it with Adobe's UXP Developer Tool |
+| Download | [Releases](https://github.com/dyanez-arch/slingsync/releases) page (`.dmg`) | `.ccx` file next to the DMG in builds and releases: double-click to install |
 
 ## Why two different builds?
 
@@ -47,5 +47,5 @@ SlingSync comes in two forms. They do the same job (line up cameras and recorder
 
 ## Which should I use?
 
-- **Edit in Premiere Pro 2027 or later?** The panel, once it's packaged for normal installation (today it needs Adobe's UXP Developer Tool). Until then, the desktop app.
+- **Edit in Premiere Pro 2027 or later?** The panel (install the `.ccx`). The desktop app is still there for anything the panel doesn't do yet.
 - **Older Premiere, another editor, or audio only?** Use the desktop app.

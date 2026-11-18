@@ -7,7 +7,7 @@ SlingSync comes in two forms:
 | | |
 |---|---|
 | **Desktop app** (Mac) | Released. Works with any editor that imports FCP7 XML, or with no video at all (audio-only export). [Download](../../releases) |
-| **Premiere Pro panel** (Premiere 2027+) | Working prototype, not packaged yet. Syncs inside Premiere on its own and puts the sequence straight into your project; also compacts any open sequence. [About the panel](premiere-panel/README.md) |
+| **Premiere Pro panel** (Premiere 2027+) | Working prototype, installs from a `.ccx` file. Syncs inside Premiere on its own and puts the sequence straight into your project; also compacts any open sequence. [About the panel](premiere-panel/README.md) |
 
 They do the same job and aim for identical results, but are built differently: Premiere plugins can only run JavaScript, so the panel carries its own JavaScript version of the engine. See [Desktop app and Premiere panel](docs/desktop-app-and-premiere-panel.md) for how they relate and which to use. The rest of this page is about the **desktop app**.
 
@@ -78,7 +78,7 @@ Anything that couldn't be synced by sound is marked orange (placed by its device
 
 ## Premiere Pro panel (working prototype)
 
-A SlingSync panel for **Premiere Pro 2027** lives in [`premiere-panel/`](premiere-panel/README.md). It syncs a shoot folder **inside Premiere, without the desktop app**, using a JavaScript copy of the same engine (results are byte-identical to the app's), and adds the synced sequence to your project. It can also export the aligned audio files and **compact any open sequence**. It isn't packaged for normal installation yet: for now it loads through Adobe's UXP Developer Tool. Read [Desktop app and Premiere panel](docs/desktop-app-and-premiere-panel.md) for the differences.
+A SlingSync panel for **Premiere Pro 2027** lives in [`premiere-panel/`](premiere-panel/README.md). It syncs a shoot folder **inside Premiere, without the desktop app**, using a JavaScript copy of the same engine (results are byte-identical to the app's), and adds the synced sequence to your project. It can also export the aligned audio files and **compact any open sequence**. Install it by double-clicking the `SlingSync-panel-….ccx` file that comes with each build. Read [Desktop app and Premiere panel](docs/desktop-app-and-premiere-panel.md) for the differences.
 
 ## Command line
 
