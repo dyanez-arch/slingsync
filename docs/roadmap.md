@@ -4,8 +4,8 @@ What's planned next for SlingSync, roughly in order. Ideas and votes are welcome
 
 ## Next
 
-### Premiere Pro plug-in: sync from Premiere bins
-Today the plug-in syncs a **folder on disk**. Next, it should also sync clips that are **already in the Premiere project**: select a bin (one sub-bin per camera or recorder, like the folders today) or a set of clips, click Sync, and get the synced sequence. Same engine, same results; the plug-in reads each clip's media path from Premiere instead of scanning a folder. Useful when the footage is already imported and organised, or spread over several drives.
+### Premiere Pro plug-in: sync from Premiere bins (started: 0.16.0, *Sync Selected Bin*)
+Built and tested against a simulated Premiere; next is testing inside Premiere. Besides a **folder on disk**, the plug-in syncs clips that are **already in the Premiere project**: select a bin (one sub-bin per camera or recorder, like the folders today) or a set of clips, click Sync, and get the synced sequence. Same engine, same results; the plug-in reads each clip's media path from Premiere instead of scanning a folder. Useful when the footage is already imported and organised, or spread over several drives.
 
 ### Screenshots
 Pictures of the app and the plug-in in the README and on the release page, so people can see what they're getting before downloading.

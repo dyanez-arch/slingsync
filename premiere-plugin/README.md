@@ -6,7 +6,8 @@ Requires **Premiere Pro 2027 (27.0) or later** (Adobe's UXP plugin system).
 
 ## What it does
 
-- **Sync a Shoot…**: pick a shoot folder (one subfolder per camera or recorder, or loose files). The plug-in lists the devices it found (files, channels) with a **Sync using** choice per device, and **Options** like the desktop app's: frame rate, leave out silent channels (every file / individual clips), re-analyse everything, also export audio files. Click **Sync**: it analyses the sound, lines everything up, writes `…_synced.xml` and `SlingSync_report.txt` into the folder (same files as the desktop app) and imports the sequence. In the Project panel it makes one bin for the shoot with the sequence and a bin per device (`Cam A`, `Audio - Boom`…).
+- **Sync a Shoot Folder…**: pick a shoot folder (one subfolder per camera or recorder, or loose files). The plug-in lists the devices it found (files, channels) with a **Sync using** choice per device, and **Options** like the desktop app's: frame rate, leave out silent channels (every file / individual clips), re-analyse everything, also export audio files. Click **Sync**: it analyses the sound, lines everything up, writes `…_synced.xml` and `SlingSync_report.txt` into the folder (same files as the desktop app) and imports the sequence. In the Project panel it makes one bin for the shoot with the sequence and a bin per device (`Cam A`, `Audio - Boom`…).
+- **Sync Selected Bin**: the same for clips already in the project. Select the shoot's bin in the Project panel (one sub-bin per camera or recorder), click *Sync Selected Bin*. Files go to a `SlingSync` folder next to the project file; the result is imported into "<bin> (synced)".
 - **Compact Timeline**: makes a copy of the **open sequence** ("… (compact)") with every stretch where no track has a clip cut out, so the day plays as one block for review or a transcript. Clips that overlap stay in sync; the original sequence is untouched.
 - **Import a synced folder**: imports the sequence of a folder synced earlier (by the plug-in or the app).
 - **Show details** after a sync: every file, match and placement (**Copy details** to paste it into a bug report).
@@ -22,7 +23,7 @@ Requires **Premiere Pro 2027 (27.0) or later** (Adobe's UXP plugin system).
 | Import a synced folder | Built; not yet tested in Premiere |
 | Clips sorted into bins by device (0.15.0) | Tested against a simulated Premiere project; not yet inside Premiere |
 | Per-device "Sync using" channel, frame rate, silent-channel options, re-analyse | Added in 0.13.0; tested against a fake Premiere (settings reach the engine), not yet inside Premiere |
-| Sync from Premiere bins instead of folders | Planned |
+| Sync from Premiere bins (*Sync Selected Bin*, 0.16.0) | Tested against a simulated Premiere project, identical to a folder sync; not yet inside Premiere |
 | Packaging for normal installation (`.ccx`) | ✅ `scripts/package_plugin.sh`, also on GitHub builds; installs by double-click (tested 2026-11-18) |
 
 Full results: [testing log](../docs/testing.md).

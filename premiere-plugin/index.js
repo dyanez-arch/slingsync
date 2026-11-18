@@ -27,6 +27,7 @@ function showBar(frac) {
 function setBusy(b) {
   busy = b;
   document.getElementById("syncFolder").disabled = b;
+  document.getElementById("syncBin").disabled = b;
   document.getElementById("compactFolder").disabled = b;
   document.getElementById("startSync").disabled = b;
   document.getElementById("cancel").hidden = !b;
@@ -257,8 +258,11 @@ function panelVersion() {
   try { return "plug-in " + require("uxp").versions.plugin; } catch (e) { return "plug-in"; }
 }
 
-async function syncFolder(folderPath, folderName, settings) {
+// job (optional, for Premiere bins): { devices, outDir } → devices come from the bin and the
+// XML, report and saved analysis go to outDir (a SlingSync folder next to the project file)
+async function syncFolder(folderPath, folderName, settings, job) {
   settings = settings || {};
+  job = job || {};
   cancelRequested = false;
   detailBox.textContent = "";
   document.getElementById("detailsWrap").hidden = true;
@@ -276,6 +280,13 @@ async function syncFolder(folderPath, folderName, settings) {
       skipSilentClips: !!settings.skipSilentClips,
       clearCache: !!settings.clearCache,
       stems: !!settings.stems,
+      ...(job.devices ? {
+        devices: job.devices, name: folderName,
+        output: job.outDir + "/" + folderName + "_synced.xml",
+        reportPath: job.outDir + "/" + folderName + "_SlingSync_report.txt",
+        cacheDir: job.outDir + "/.slingsync_cache",
+        stemsDir: job.outDir + "/" + folderName + "_audio",
+      } : {}),
       isCancelled: () => cancelRequested,
       progress: (f, m) => { showBar(f); say("Syncing " + folderName + "…\n" + m); },
       log: (line) => lines.push(line),
@@ -286,9 +297,9 @@ async function syncFolder(folderPath, folderName, settings) {
     const check = res.files - synced;
     const mins = ((Date.now() - t0) / 60000).toFixed(1);
     const summary = `${synced} of ${res.files} clips synced by sound` +
-      (check ? `, ${check} to check (see SlingSync_report.txt)` : "") + ` · ${mins} min.` +
+      (check ? `, ${check} to check (see ${res.report.split("/").pop()})` : "") + ` · ${mins} min.` +
       (res.stems && res.stems.length ? `\n${res.stems.length} audio files in “${res.stems_dir.split("/").pop()}”.` : "") + "\n";
-    await importXml(res.xml, summary, { shootName: folderName, deviceOf: deviceMapFromResult(res) });
+    await importXml(res.xml, summary, { shootName: job.devices ? folderName + " (synced)" : folderName, deviceOf: deviceMapFromResult(res) });
   } catch (e) {
     detailBox.textContent = lines.join("\n");
     document.getElementById("detailsWrap").hidden = !lines.length && !(e && e.stack);
@@ -379,6 +390,7 @@ document.getElementById("fpsBox").appendChild(makePicker("fps", FPS_CHOICES.map(
 function showSetup(show) {
   document.getElementById("setup").hidden = !show;
   document.getElementById("syncFolder").hidden = show;
+  document.getElementById("syncBin").hidden = show;
   document.getElementById("compactFolder").hidden = show;
 }
 
@@ -445,7 +457,65 @@ document.getElementById("startSync").addEventListener("click", () => guarded(asy
   const job = pending, settings = readSettings(job.devs);
   pending = null;
   showSetup(false);
-  await syncFolder(job.path, job.name, settings);
+  await syncFolder(job.path, job.name, settings, job.bin ? { devices: job.devs, outDir: job.outDir } : null);
+}));
+
+// ---- Sync Selected Bin: devices from Premiere bins instead of folders ----
+// Select the shoot's bin in the Project panel: each sub-bin is a camera or recorder (clips in
+// nested bins count for it). A bin with only clips: devices are guessed from file names, like
+// loose files in a folder.
+function commonDir(paths) {
+  const parts = paths.map((p) => p.split("/").slice(0, -1));
+  let n = parts.length ? parts[0].length : 0;
+  for (const q of parts) { let i = 0; while (i < n && i < q.length && q[i] === parts[0][i]) i++; n = i; }
+  return parts.length ? parts[0].slice(0, n).join("/") || "/" : "/";
+}
+async function devicesFromSelectedBin() {
+  const P = await activeProject();
+  if (!P) throw new Error("Open a Premiere project first.");
+  if (!P.path) throw new Error("Save the Premiere project first: SlingSync keeps its files next to the project file.");
+  const sel = await ppro.ProjectUtils.getSelection(P);
+  const picked = (await describe(await sel.getItems())).filter((x) => x.bin);
+  if (!picked.length) throw new Error("In the Project panel, select the shoot's bin first (one sub-bin per camera or recorder), then click Sync Selected Bin.");
+  const shoot = picked[0];
+  const isMedia = (p) => p && SlingCore.isMedia(p.split("/").pop());
+  const inside = await describe(await shoot.bin.getItems());
+  const devs = [];
+  for (const sub of inside.filter((x) => x.bin).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
+    const files = [...new Set((await clipsUnder(sub.bin, new Set())).map((c) => c.path).filter(isMedia))].sort();
+    if (files.length) devs.push(SlingCore.deviceEntry(sub.name, files));
+  }
+  const loose = [...new Set(inside.filter((x) => !x.bin).map((x) => x.path).filter(isMedia))].sort();
+  let note = "";
+  if (!devs.length) {
+    const groups = new Map();
+    for (const f of loose) { const k = SlingCore.looseDevice(f); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(f); }
+    for (const k of [...groups.keys()].sort()) devs.push(SlingCore.deviceEntry(k, groups.get(k)));
+    if (devs.length) note = "No sub-bins, so devices were guessed from file names: check the list.";
+  } else if (loose.length) {
+    note = `${loose.length} clips lying directly in “${shoot.name}” (not in a device bin) are left out.`;
+  }
+  const all = devs.flatMap((d) => d.files);
+  const projDir = P.path.split("/").slice(0, -1).join("/");
+  return { name: shoot.name, devs: devs.filter((d) => d.files.length), root: commonDir(all), outDir: projDir + "/SlingSync", note };
+}
+
+document.getElementById("syncBin").addEventListener("click", () => guarded(async () => {
+  document.getElementById("detailsWrap").hidden = true;
+  say("Reading the selected bin…");
+  let found;
+  try { found = await devicesFromSelectedBin(); }
+  catch (e) { say(e && e.message ? e.message : String(e), "err"); return; }
+  if (!found.devs.length) { say("No video or audio clips in “" + found.name + "”.", "err"); return; }
+  const { P, media } = await getEngine();
+  if (!(await P.exists(found.outDir))) await P.mkdir(found.outDir);
+  const devs = await SlingRun.scanWithChannels(P, media, found.root, found.devs);
+  pending = { path: found.root, name: found.name, devs, bin: true, outDir: found.outDir };
+  const total = devs.reduce((n, d) => n + d.files.length, 0);
+  document.getElementById("setupTitle").textContent = `Bin “${found.name}”: ${total} clips from ${devs.length} devices`;
+  renderDevices(devs);
+  say(found.note || "");
+  showSetup(true);
 }));
 
 document.getElementById("setupCancel").addEventListener("click", (ev) => {

@@ -6,7 +6,8 @@ What was tested with each build is in the [testing log](docs/testing.md).
 
 ## 1.2.3 (next)
 
-### Premiere Pro plug-in 0.15.0
+### Premiere Pro plug-in 0.15.0 – 0.16.0
+- 0.16.0: **Sync Selected Bin**: sync clips that are already in the Premiere project. Select the shoot's bin in the Project panel (one sub-bin per camera or recorder; clips in nested bins count for that device; a bin with only clips gets devices guessed from file names), click *Sync Selected Bin*, check the device list, Sync. The XML, report and saved analysis go to a `SlingSync` folder next to the project file; the result is imported into "<bin> (synced)" with a bin per device, and the original bin is left alone. Tested against a simulated Premiere project: results identical to a folder sync of the same files. Not yet tested inside Premiere. The main button is now *Sync a Shoot Folder…*.
 - **Clips sorted into bins by device** after *Sync a Shoot* and *Import a synced folder*: one bin per shoot (named after the shoot folder) with the sequence and a bin per device inside (`Audio - Boom`, `Cam A`…), so several imports don't end up mixed in one bin. Clips that were already in the project are never moved. If sorting fails, the import still completes. Tested against a simulated Premiere project (both ways Premiere may import an XML: into its own bin or loose); not yet tested inside Premiere.
 - The import also takes a fresh project handle at every step (an older one can stop working, as seen with Compact Timeline).
 

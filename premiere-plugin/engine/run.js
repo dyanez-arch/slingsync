@@ -110,8 +110,9 @@
   }
 
   // Devices with their channel counts, for the settings step (gui.ScanWorker / engine.device_channels)
-  async function scanWithChannels(P, media, project) {
-    const devs = await scanDevices(P, project);
+  // devs: an already-built device list (e.g. from Premiere bins) instead of scanning `project`
+  async function scanWithChannels(P, media, project, devs) {
+    devs = devs || await scanDevices(P, project);
     for (const d of devs) {
       let best = 0;
       for (const f of d.files.slice(0, 3)) {
@@ -433,14 +434,15 @@
   async function run(P, media, project, opts = {}) {
     const o = Object.assign({ refChannels: {}, fps: null, keepSilent: false, skipSilentClips: false,
       silenceDb: -60.0, flatDb: 3.0, minVotes: 12, output: null, name: null, cacheDir: null,
-      reportPath: null, clearCache: false, compact: false, stems: false, stemsDir: null, stemsRate: null, version: "plug-in", progress: null, isCancelled: null, log: null }, opts);
+      reportPath: null, devices: null, clearCache: false, compact: false, stems: false, stemsDir: null, stemsRate: null, version: "plug-in", progress: null, isCancelled: null, log: null }, opts);
     const outer = o.progress || (() => {});
     const say = o.stems ? (f, m) => outer(0.85 * f, m) : outer;   // last part of the bar: audio files
     const log = o.log || (() => {});
     const checkCancel = () => { if (o.isCancelled && o.isCancelled()) throw new Cancelled(); };
     const name = o.name || C.basename(project);
     say(0.0, "Looking for media...");
-    const devs = await scanDevices(P, project);
+    // o.devices: devices given by the caller (Premiere bins); otherwise scan the folder
+    const devs = o.devices || await scanDevices(P, project);
     const devices = devs.map((d) => d.name);
     const files = [];
     devs.forEach((d, i) => d.files.forEach((f) => files.push([i, f])));
