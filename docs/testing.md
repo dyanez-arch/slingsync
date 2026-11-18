@@ -2,6 +2,31 @@
 
 What has actually been run, on what, and what hasn't been tested yet. Newest first.
 
+## 2026-11-17: Scotland site visit, 131 clips, 5 devices: ✅ verified in Premiere
+
+**Media:** device subfolders on an SSD, all proxies (no originals present):
+
+| Device | Clips | Audio | Dates found |
+|---|---|---|---|
+| `Audio/` | 17 BWF WAVs | 3 ch | recorder clock |
+| `Cam A/` | 53 proxies | 8 ch (1 live) | timecode only |
+| `Cam B/` | 36 proxies | 8 ch (1 live) | timecode only |
+| `Drone/` | 20 DJI proxies | none | original creation date carried into proxy |
+| `GoPro/` | 5 chapters of one recording | 2 ch | timecode + one shared creation date |
+
+**Result:** 57 clips synced by sound, 74 placed by date, one track per device. 7 min first run, about 11 s re-run from the cache, 1.6 GB peak memory.
+
+**What the clocks showed (and SlingSync now handles):**
+- Recorder clock steady all day (checked 17 times against sound, 0.0 s error).
+- Cam A and Cam B ran different timecode in the morning and were jammed to the recorder at about 17:10. Detected as a clock change. Morning clips are placed using the morning setting.
+- GoPro steadily 62 min behind (within 1.2 s).
+- Drone: no audio, so its clock is a guess.
+- One false match (Cam A `0427` ↔ GoPro, 13 votes) contradicted the clocks by 45 min and was dropped.
+
+**Fixed during this test:** timecode as a date source, proxy dates carried over from originals, wall-clock time zones, record-run versus chapter detection, clock changes mid-shoot, weak-match rejection, sub-second overlaps of back-to-back clips, simpler statuses.
+
+**Premiere (checked by Dani):** all good. Sound-synced scenes, morning clips, GoPro chapters, Drone position and orange clips all as expected.
+
 ## 2026-11-17: Interview, 2 cameras + polyWAV recorder: ✅ verified in Premiere
 
 **Media:** 4 loose files in one folder (no device subfolders), on an internal-class SSD (APFS, PCIe):
@@ -51,12 +76,13 @@ Generated with known offsets: 3 devices, steady ambience plus sparse events, a d
 
 ## Not tested yet
 
-- [ ] A many-clip shoot (the night shoot above) on stable storage, imported into Premiere
+- [x] A many-clip shoot imported into Premiere (Scotland, above)
+- [ ] Original camera files (MXF/MOV) rather than proxies, on a many-clip shoot
 - [ ] The built `.app` / DMG: install, Gatekeeper first launch, drag-and-drop, progress, cancel
 - [ ] Mixed frame rates in one project (23.976 / 25 / 29.97 / 50)
 - [ ] Variable-frame-rate phone footage
 - [ ] Paths with accented characters
-- [ ] Cameras that stamp the *end* of a recording (logic exists, not seen in real media yet)
+- [ ] Cameras that stamp the *end* of a recording (logic exists, not seen in real media yet; all devices so far stamp the start)
 - [ ] Read-only drives and NAS shares (the cache is written inside the project folder)
 - [ ] Very long multi-hour recorder files and memory use on 8 GB Macs
 - [ ] Intel Macs

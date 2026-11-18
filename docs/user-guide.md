@@ -52,7 +52,7 @@ SlingSync recognises Premiere-style proxies (`…_Proxy.mov`, `…_proxy.mp4`, u
 - **Original and proxy both present:** the proxy is skipped and the original is used.
 - **Only the proxy present:** the proxy is used. The sequence will then point at the proxy files.
 
-A proxy's file date is when it was made, not when it was shot, so proxies are placed **by sound only**. A proxy that shares no sound with another device is parked at the end of the timeline (red) instead of being placed at a wrong time.
+A proxy's own file date is when it was transcoded, so SlingSync never uses it. Many proxies still carry the original shoot date or the camera's timecode inside them, and those are used. A proxy with no usable date that shares no sound with another device is parked at the end of the timeline (red) instead of being placed at a wrong time.
 
 ## 3. Sync
 
@@ -83,9 +83,8 @@ When it finishes, the window shows a summary and lists anything that needs check
 
 | Colour | Status | Meaning |
 |---|---|---|
-| (none) | synced | Placed by sound |
-| Yellow | block placed by date | A group of clips synced to each other by sound, but sharing no sound with the main timeline. The group is positioned using device clocks |
-| Orange | placed by date | A single clip with no sound match, positioned using its device's clock. If a whole device shares no sound with the others, its clock is assumed to match theirs, or, if that's clearly wrong (e.g. a camera set to the wrong year), its first clip starts at the beginning of the timeline. The report notes "its clock is a guess" |
+| (none) | synced | Lined up by sound with at least one other device. Separate scenes are positioned relative to each other by device clocks, but within a scene everything is synced by sound |
+| Orange | placed by date | Shares no sound with another device (cutaways, drone, a camera rolling while the recorder was off). Positioned by its device's clock (recorder clock, timecode or file date), corrected using the nearest sound-synced clip from the same device. The report says how far away that check was, or that the clock is a guess (e.g. a drone with no audio) |
 | Red | NOT PLACED | No usable sound and no usable date. Parked after the end of the timeline |
 
 ## 5. The report
@@ -95,6 +94,7 @@ When it finishes, the window shows a summary and lists anything that needs check
 - A summary count per status, sequence frame rate and track counts.
 - **Tracks per device**: lanes and which channels were kept.
 - **CHECK THESE BY EYE**: every clip not synced by sound, with its timeline position.
+- **Device clocks**: for each device, whether its clock was steady, changed during the shoot (e.g. cameras re-jammed at lunch), or is a guess. This is how far you can trust orange clips.
 - **Clock drift**: how far each pair of long clips drifts apart, and whether that matters.
 - **Inconsistent matches**: pairs of clips whose sound match disagrees with the final solution by more than 80 ms. Usually harmless (e.g. repeated music), but look here if something is off.
 - **Silent channels** per file, and which channels were used for syncing.

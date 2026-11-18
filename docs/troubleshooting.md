@@ -18,8 +18,8 @@ The drive disconnected while SlingSync was reading it. Bus-powered USB hard driv
 - Try **Sync using → Only channel N** on the recorder to pick a mic closer to what the cameras hear, or the reverse.
 - On the CLI, try a lower `--min-votes` (e.g. `8`). This finds more matches, but risks false ones.
 
-**A whole block is in the wrong place**
-Yellow (*block placed by date*) clips are only as accurate as the device clocks. Move the block by hand in Premiere. Every clip inside it is still synced to the others in the block.
+**A scene or an orange clip is in the wrong place**
+Positions between scenes come from device clocks. Look at **Device clocks** in the report. If a device's clock changed during the shoot, clips near the change may be off. Move them by hand in Premiere: clips within a scene stay synced to each other.
 
 **Wrong matches (a clip clearly misaligned but not flagged)**
 Look at **Inconsistent matches** in the report. Raise `--min-votes` (e.g. `20`) on the CLI, or set a reference channel that avoids shared music or PA sound.

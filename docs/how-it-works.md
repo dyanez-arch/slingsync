@@ -19,11 +19,14 @@ flowchart LR
 
 If there are no device subfolders, the files in the project folder are grouped by name (`_loose_device`): `A005C002…` becomes `Cam A`, and otherwise the name with its trailing number removed is used (`INTVW1T02` becomes `INTVW1T`).
 
-`probe()` opens each file with PyAV (FFmpeg libraries bundled, no system FFmpeg needed) and reads its duration, audio streams and channel counts, sample rate, video frame rate and size, and a **date hint**. The date hint comes from, in order of preference:
+`probe()` opens each file with PyAV (FFmpeg libraries bundled, no system FFmpeg needed) and reads its duration, audio streams and channel counts, sample rate, video frame rate and size, and every **date hint** it carries. `resolve_dates()` then picks one per clip, in order of preference:
 
 1. Broadcast WAV `bext` fields (`origination_date` plus `time_reference` or `origination_time`), i.e. the recorder's own clock. Labelled *recorder clock*.
-2. Container metadata: `com.apple.quicktime.creationdate`, `creation_time` or `date`. Labelled *file metadata*.
-3. The file's creation time on disk (or modification time minus duration). Labelled *file date*.
+2. Camera **timecode** (time of day), with the day taken from the clip's metadata or the shoot's most common day. Labelled *timecode*. Timecode in *record-run* mode (clips numbered back to back, while their dates show real gaps) only gives the order, so it is ignored. One recording split into chapters (GoPro, 4 GB splits) is also back to back, but its dates show no gaps, so its timecode is kept.
+3. Container metadata: `com.apple.quicktime.creationdate`, `creation_time` or `date`. Labelled *file metadata*. For a **proxy**, this is trusted only if it is more than a day older than the proxy file itself, meaning it was carried over from the original rather than being the transcode date.
+4. The file's creation time on disk (or modification time minus duration). Labelled *file date*. Never used for proxies.
+
+All dates are compared as **wall-clock time**, with any time zone label dropped. Recorder clocks and timecode carry no zone, and many cameras (DJI, GoPro) write local time labelled as UTC.
 
 Unreadable files are skipped and listed in the report.
 
@@ -78,13 +81,20 @@ Overlaps shorter than 1 s aren't refined.
 
 **Least squares.** For every group of 3 or more clips, *all* edges consistent with the tree (within 50 ms) are solved together by weighted least squares (`scipy.sparse.linalg.lsqr`). Weights are √votes, doubled for refined edges. Two passes are run. This spreads small errors across the network instead of letting them pile up along a chain. Edges still off by more than 80 ms afterwards are reported as *inconsistent matches*.
 
-**Groups without shared sound.** The largest group (by clip count, then total duration) becomes the main timeline. Every other group is positioned using **device clocks**:
+**Weak contradicting matches.** Before grouping, each match implies a gap between the two devices' clocks. When at least two matches for a device pair agree on that gap, a lone match that disagrees by more than 2 minutes and has fewer than 3× `min_votes` votes is dropped as false (`_drop_clock_contradictions`). Strong disagreeing matches are kept, because a clock can really change mid-shoot.
 
-- Each device's clock is modelled as *audio timeline + a constant offset*.
-- Offsets for devices and positions for groups are estimated together by alternating medians over every clip that has a date.
-- Some cameras stamp the **start** of a recording and some stamp the **end**. For up to 8 devices, SlingSync tries every start/end combination and keeps the one that places the most groups with the smallest error.
+**Groups without shared sound.** The largest group (by clip count, then total duration) becomes the main timeline. Every other group (a scene, or a single clip) is positioned using **device clocks**, allowing a clock to **change during the shoot** (re-jam, battery swap, time zone change):
 
-Devices with no sound link to anything already placed are then given a guessed clock: the same as the linked devices, or, if that would put them more than 6 hours outside the timeline, their first clip at the timeline start. Their clips get the note "its clock is a guess". Groups that still can't be positioned (e.g. proxies, whose dates are ignored) are marked **NOT PLACED** and parked after the end of the timeline, 30 s after the last clip and then 10 s apart.
+- Some cameras stamp the **start** of a recording and some stamp the **end**. For up to 8 devices, SlingSync tries every start/end combination with a simple one-offset-per-device model and keeps the one that places the most groups with the smallest error.
+- Then `local_place` places groups one at a time, nearest evidence first. A clip's position comes from the offset of the **nearest** (in that device's own time) clip whose position is pinned by sound. Each newly placed multi-device group becomes evidence for the rest. When members of a group disagree, the candidate most members agree with wins, and ties go to the nearest evidence.
+- A device with no sound link at all gets a guessed clock: the same as the others, or, if that would put it more than 6 hours outside the timeline, its first clip at the timeline start.
+- Groups that still can't be positioned (e.g. proxies with no usable date) are marked **NOT PLACED** and parked after the end of the timeline.
+
+**Back-to-back clips.** Dates have 1-second resolution, so consecutive recordings can overlap by a fraction of a second. A date-placed clip overlapping its device's neighbour by under 1.5 s is butted up against it, and overlaps of 1 to 2 frames are trimmed in the XML instead of opening an extra track.
+
+**Statuses.** Every clip in a multi-device group is *synced* (lined up by sound with at least one other device). Single clips positioned by clock are *placed by date*, with a note giving the distance to the clock check used, or saying the clock is a guess.
+
+**Device clocks report.** Each device's sound-verified offsets are split into *settings*: consecutive checks agreeing within 2 s. One setting means a steady clock. Several mean the clock changed, and the report gives the device-time range of each.
 
 Finally the whole timeline is shifted so the earliest clip starts at 0.
 
