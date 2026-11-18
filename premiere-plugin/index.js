@@ -43,31 +43,49 @@ async function sequenceNames(project) {
   return names;
 }
 
-async function importXml(nativePath, prefix) {
+async function importXml(nativePath, prefix, organize) {
   prefix = prefix || "";
-  const project = await ppro.Project.getActiveProject();
-  if (!project) {
+  // Fresh project handles every time: an older handle can stop working once a new one is
+  // fetched (seen with Compact Timeline).
+  const P = () => ppro.Project.getActiveProject();
+  if (!(await P())) {
     say("Open or create a Premiere project first.", "err");
     return false;
   }
   const file = nativePath.split("/").pop();
-  const ids = async () => (await project.getSequences()).map((q) => String(q.guid));
-  const before = new Set(await ids());
-  const root = await project.getRootItem();
+  // Snapshot for sorting into bins afterwards; if it fails, import without bins.
+  let beforeTop = null;
+  if (organize) { try { beforeTop = await topLevelKeys(); } catch (e) { organize = null; } }
+  const before = new Set((await (await P()).getSequences()).map((q) => String(q.guid)));
   // Don't wait on importFiles itself: it can take long (or never answer) while Premiere
   // reads the media. Watch for the new sequence instead, and show how long it's taking.
   let reported, failed = null, finishedAt = null;
-  project.importFiles([nativePath], true, root, false)
-    .then((r) => { reported = r; finishedAt = Date.now(); })
-    .catch((e) => { failed = e; finishedAt = Date.now(); });
+  {
+    const project = await P();
+    const root = await project.getRootItem();
+    project.importFiles([nativePath], true, root, false)
+      .then((r) => { reported = r; finishedAt = Date.now(); })
+      .catch((e) => { failed = e; finishedAt = Date.now(); });
+  }
   const t0 = Date.now();
   cancelRequested = false;
   while (true) {
     await sleep(500);
-
-    const added = (await project.getSequences()).filter((q) => !before.has(String(q.guid)));
+    const added = (await (await P()).getSequences()).filter((q) => !before.has(String(q.guid)));
     if (added.length) {
-      say(prefix + "Imported: " + added.map((q) => q.name).join(", ") + "\nOpen it from the Project panel.", "ok");
+      let binNote = "";
+      if (organize) {
+        // let Premiere finish adding the clips before tidying them into bins
+        for (let k = 0; k < 40 && !finishedAt; k++) await sleep(250);
+        await sleep(1000);
+        try {
+          say(prefix + "Imported. Sorting the clips into bins by device…");
+          binNote = "\n" + await organizeImport(beforeTop, organize.shootName, organize.deviceOf);
+        } catch (e) {
+          binNote = "\n(Couldn't sort the clips into device bins: " + (e && e.message ? e.message : e) + ")";
+        }
+      }
+      say(prefix + "Imported: " + added.map((q) => q.name).join(", ") + binNote + "\nOpen it from the Project panel.", "ok");
       return true;
     }
     if (failed) { say(prefix + "Premiere refused the import:\n" + failed, "err"); return false; }
@@ -82,6 +100,124 @@ async function importXml(nativePath, prefix) {
       ? "\nPremiere is still reading the media. If a Premiere window is asking something, answer it." : ""));
 
   }
+}
+
+// ---- Bins: after an import, one bin per shoot with a bin per device inside ----
+// Uses fresh project objects for every step and creates actions inside lockedAccess +
+// executeTransaction (see edit() below). Items that were in the project before the import
+// are never moved.
+async function binInfo(item) {                // { bin: FolderItem|null, path: string|null, seq: bool }
+  try {
+    const f = ppro.FolderItem.cast(item);
+    if (f) { await f.getItems(); return { bin: f, path: null, seq: false }; }
+  } catch (e) { /* not a bin */ }
+  try {
+    const c = ppro.ClipProjectItem.cast(item);
+    const seq = await c.isSequence();
+    return { bin: null, path: seq ? null : await c.getMediaFilePath(), seq };
+  } catch (e) { return { bin: null, path: null, seq: false }; }
+}
+async function describe(items) {
+  const out = [];
+  for (const it of items) { const b = await binInfo(it); out.push({ item: it, name: it.name, ...b, key: it.name + (b.bin ? "|bin" : "|item") }); }
+  return out;
+}
+async function topLevelKeys() {
+  const P = await activeProject();
+  const counts = new Map();
+  for (const x of await describe(await (await P.getRootItem()).getItems())) counts.set(x.key, (counts.get(x.key) || 0) + 1);
+  return counts;
+}
+// top-level items that weren't there before (by name, counting duplicates)
+function newOnes(list, beforeKeys) {
+  const left = new Map(beforeKeys);
+  return list.filter((x) => { const n = left.get(x.key) || 0; if (n > 0) { left.set(x.key, n - 1); return false; } return true; });
+}
+async function findBin(P, names) {          // names: path of bin names from the root
+  let folder = await P.getRootItem();
+  for (const n of names) {
+    const hit = (await describe(await folder.getItems())).find((x) => x.bin && x.name === n);
+    if (!hit) return null;
+    folder = hit.bin;
+  }
+  return folder;
+}
+async function clipsUnder(folder, skipBins) {  // all media clips in a bin and its sub-bins
+  const out = [];
+  for (const x of await describe(await folder.getItems())) {
+    if (x.bin) { if (!skipBins.has(x.name)) out.push(...await clipsUnder(x.bin, new Set())); }
+    else if (x.path) out.push(x);
+  }
+  return out;
+}
+const normPath = (p) => String(p || "").normalize("NFC").toLowerCase();
+
+async function organizeImport(beforeKeys, shootName, deviceOf) {
+  let P = await activeProject();
+  const added = newOnes(await describe(await (await P.getRootItem()).getItems()), beforeKeys);
+  if (!added.length) return "";
+  // 1. one bin for the shoot: Premiere's own import bin if it made one, otherwise a new one
+  let shootBin;
+  if (added.length === 1 && added[0].bin) {
+    shootBin = added[0].name;
+    // Premiere names its bin after the XML file: rename it to the shoot, if that name is free
+    const taken = new Set((await describe(await (await P.getRootItem()).getItems())).filter((x) => x.bin).map((x) => x.name));
+    if (shootBin !== shootName && !taken.has(shootName)) {
+      try {
+        await edit(async (Q) => findBin(Q, [shootBin]), (bin) => [bin.createSetNameAction(shootName)], "SlingSync: name shoot bin");
+        if (await findBin(await activeProject(), [shootName])) shootBin = shootName;
+      } catch (e) { /* keep Premiere's name */ }
+    }
+  } else {
+    const existing = new Set((await describe(await (await P.getRootItem()).getItems())).filter((x) => x.bin).map((x) => x.name));
+    shootBin = shootName;
+    for (let k = 2; existing.has(shootBin); k++) shootBin = `${shootName} (${k})`;
+    await edit(async (Q) => Q.getRootItem(), (root) => [root.createBinAction(shootBin, false)], "SlingSync: shoot bin");
+    await edit(async (Q) => {
+      const root = await Q.getRootItem();
+      const now = newOnes(await describe(await root.getItems()), beforeKeys).filter((x) => !(x.bin && x.name === shootBin));
+      return { root, bin: await findBin(Q, [shootBin]), now };
+    }, ({ root, bin, now }) => now.map((x) => root.createMoveItemAction(x.item, bin)), "SlingSync: move into shoot bin");
+  }
+  // 2. a bin per device inside it, and each clip into its device's bin
+  const byDev = new Map();
+  P = await activeProject();
+  const deviceNames = new Set(deviceOf.values());
+  for (const x of await clipsUnder(await findBin(P, [shootBin]), deviceNames)) {
+    const dev = deviceOf.get(normPath(x.path));
+    if (dev) byDev.set(dev, (byDev.get(dev) || 0) + 1);
+  }
+  if (!byDev.size) return `Clips are in the “${shootBin}” bin.`;
+  const have = new Set((await describe(await (await findBin(P, [shootBin])).getItems())).filter((x) => x.bin).map((x) => x.name));
+  const make = [...byDev.keys()].filter((d) => !have.has(d)).sort();
+  if (make.length) {
+    await edit(async (Q) => findBin(Q, [shootBin]), (bin) => make.map((d) => bin.createBinAction(d, false)), "SlingSync: device bins");
+  }
+  let moved = 0;
+  await edit(async (Q) => {
+    const bin = await findBin(Q, [shootBin]);
+    const targets = new Map();
+    for (const d of byDev.keys()) targets.set(d, await findBin(Q, [shootBin, d]));
+    const items = (await clipsUnder(bin, deviceNames)).filter((x) => deviceOf.has(normPath(x.path)));
+    return { bin, targets, items };
+  }, ({ bin, targets, items }) => items.map((x) => {
+    moved++;
+    return bin.createMoveItemAction(x.item, targets.get(deviceOf.get(normPath(x.path))));
+  }), "SlingSync: sort clips by device");
+  return `Clips sorted into ${byDev.size} device bins in “${shootBin}” (${moved} clips).`;
+}
+
+// file path -> device name, from a sync result or by scanning the folder
+function deviceMapFromResult(res) {
+  const m = new Map();
+  for (const c of res.clips) m.set(normPath(c.path), res.devices[c.dev]);
+  return m;
+}
+async function deviceMapFromFolder(folderPath) {
+  const { P } = await getEngine();
+  const m = new Map();
+  for (const d of await SlingRun.scanDevices(P, folderPath)) for (const f of d.files) m.set(normPath(f), d.name);
+  return m;
 }
 
 // Copy text to the clipboard. UXP's own setContent takes {"text/plain": …}; writeText can
@@ -152,7 +288,7 @@ async function syncFolder(folderPath, folderName, settings) {
     const summary = `${synced} of ${res.files} clips synced by sound` +
       (check ? `, ${check} to check (see SlingSync_report.txt)` : "") + ` · ${mins} min.` +
       (res.stems && res.stems.length ? `\n${res.stems.length} audio files in “${res.stems_dir.split("/").pop()}”.` : "") + "\n";
-    await importXml(res.xml, summary);
+    await importXml(res.xml, summary, { shootName: folderName, deviceOf: deviceMapFromResult(res) });
   } catch (e) {
     detailBox.textContent = lines.join("\n");
     document.getElementById("detailsWrap").hidden = !lines.length && !(e && e.stack);
@@ -487,7 +623,9 @@ document.getElementById("fromFolder").addEventListener("click", (ev) => { ev.pre
       say("“" + folder.name + "” hasn't been synced yet.\nUse Sync a Shoot… instead.", "err");
       return;
     }
-    await importXml(xmls[0].nativePath);
+    let deviceOf = null;
+    try { deviceOf = await deviceMapFromFolder(folder.nativePath); } catch (e) { /* import without bins */ }
+    await importXml(xmls[0].nativePath, "", deviceOf ? { shootName: folder.name, deviceOf } : null);
   } catch (e) {
     say("Couldn't read the folder:\n" + e, "err");
   }

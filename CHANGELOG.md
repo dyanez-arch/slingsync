@@ -4,6 +4,12 @@ Every build that reaches anyone gets its own version number and section here. Te
 
 What was tested with each build is in the [testing log](docs/testing.md).
 
+## 1.2.3 (next)
+
+### Premiere Pro plug-in 0.15.0
+- **Clips sorted into bins by device** after *Sync a Shoot* and *Import a synced folder*: one bin per shoot (named after the shoot folder) with the sequence and a bin per device inside (`Audio - Boom`, `Cam A`…), so several imports don't end up mixed in one bin. Clips that were already in the project are never moved. If sorting fails, the import still completes. Tested against a simulated Premiere project (both ways Premiere may import an XML: into its own bin or loose); not yet tested inside Premiere.
+- The import also takes a fresh project handle at every step (an older one can stop working, as seen with Compact Timeline).
+
 ## 1.2.2 (2026-11-18)
 
 With the **Premiere Pro plug-in 0.14.0** (`SlingSync-PremierePro-plugin-0.14.0.ccx`). Built by GitHub Actions run [44396337153](https://github.com/dyanez-arch/slingsync/actions/runs/44396337153) from tag `v1.2.2`; [release page](https://github.com/dyanez-arch/slingsync/releases/tag/v1.2.2).
