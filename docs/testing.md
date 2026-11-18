@@ -68,6 +68,15 @@ What has actually been run, on what, and what hasn't been tested yet. Newest fir
 
 **Re-run after the Scotland changes (same day):** identical positions (to the millisecond). Also run in the app window (offscreen): the device list showed Cam A / Cam B as proxies and the "devices were guessed from file names" warning appeared. The sync completed with the same result. Before the fix, both camera↔recorder matches fell back to the coarse 16 ms result.
 
+## 2026-11-17 (evening): Night shoot, re-run from the installed app: ✅ worked (Dani)
+
+**Build:** 1.1.0b2 test build (the app and report still showed "1.0.0"). Same WD Elements USB drive and original Sony MXF files as the incomplete run below (85 media files, about 135 GB).
+
+**Result:** the drive stayed connected for the whole run. 91 clips placed: 8 synced by sound, 83 placed by date, none unplaced, one track per device. The recorder only covers about 6 minutes of the night, so most camera clips have no sound partner and are placed by clock.
+- Device clocks: recorder checked against sound 4 times and Cam B 3 times, both within 0.0 s. Cam A checked once. Drone (no audio) is a guess.
+- `CAShoe_0747`, misjudged as silent in this morning's first run, was correctly analysed as steady ambience.
+- Dani: "worked perfect".
+
 ## 2026-11-17: Night shoot, 2 cameras + recorder + drone: ⚠️ incomplete
 
 **Build:** run from source (development code between 1.0.0 and 1.1.0b1).
