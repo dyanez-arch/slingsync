@@ -6,7 +6,7 @@ What was tested with each build is in the [testing log](docs/testing.md).
 
 ## 1.2.1b1 (test build)
 
-Includes the **Premiere Pro plug-in 0.12.0** (`SlingSync-PremierePro-plugin-0.12.0.ccx`), with the same device split as the app.
+Built by GitHub Actions run [44377084732](https://github.com/dyanez-arch/slingsync/actions/runs/44377084732) from commit `a2c2f8d`: `SlingSync-1.2.1b1-macOS-AppleSilicon.dmg` plus the **Premiere Pro plug-in 0.12.0** (`SlingSync-PremierePro-plugin-0.12.0.ccx`), with the same device split as the app.
 
 ### Improved
 - **A folder that groups several recorders or cameras is split into one device each** (app and plug-in): `Audio/Boom`, `Audio/Ed Lav`, `Audio/Matthew Lav` become three devices instead of one "Audio" device with three mixed-up clocks. Only when the subfolders' files are named differently, so cards of one camera stay together; `B-roll/Cam A` joins `Cam A` when its files are named the same way. Devon 2nd Run: 59 → 67 clips synced by sound, timeline 72 h → 24.5 h (compact 11 h 34 → 6 h 05). Checked on 14 shoots: only the 3 with grouped folders change. See the [user guide](docs/user-guide.md#a-folder-that-groups-several-devices).
@@ -20,8 +20,9 @@ Includes the **Premiere Pro plug-in 0.12.0** (`SlingSync-PremierePro-plugin-0.12
 ### Removed
 - The app's `slingsync://` link and `.slingsync_status.json` progress file: they let early plug-in versions ask the app to sync, and the plug-in has synced on its own since 0.6. (A leftover `.slingsync_status.json` in a shoot folder can be deleted.)
 
-### Premiere Pro plug-in 0.11.0
-- The developer tests are out of the plug-in (kept in `premiere-plugin/tests/lab_feasibility.js`). About shows only what users need.
+### Premiere Pro plug-in 0.11.0 – 0.12.0
+- 0.11.0: the developer tests are out of the plug-in (kept in `premiere-plugin/tests/lab_feasibility.js`). About shows only what users need.
+- 0.12.0: grouped device folders are split, like the app (see Improved).
 
 ### Repository
 - Issue templates: *Report a problem* asks for the tool, version, Mac, the shoot, `SlingSync_report.txt` and the details log; *Suggest a feature*; links to the guides and Ko-fi.
