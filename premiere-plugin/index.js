@@ -892,7 +892,56 @@ async function buildInto(outBin, seqName, clips, first, laneOf, log) {
   return `Built “${seqName}” from your own clips (in the “${outBin}” bin): no duplicates.`;
 }
 
-// ---- Sync Timeline: sync the clips in the open sequence (in a copy), one track per device ----
+// Devices of a set of media files, by the same rules as syncing a shoot folder (one folder per
+// camera/recorder, split groups, names when there are no folders), using only these files:
+// a folder scan run on a virtual folder tree built from the paths. Files the folder rules would
+// skip (e.g. loose next to device folders) get a device from their file names.
+async function devicesFromPaths(paths) {
+  paths = [...new Set(paths)].sort();
+  const root = commonDir(paths);
+  const join = (a, b) => (a.endsWith("/") ? a + b : a + "/" + b);
+  const vfs = {
+    join,
+    listDir: async (dir) => {
+      const pre = join(dir, ""), seen = new Map();
+      for (const p of paths) {
+        if (!p.startsWith(pre)) continue;
+        const rest = p.slice(pre.length).split("/");
+        seen.set(rest[0], seen.get(rest[0]) || rest.length > 1);
+      }
+      return [...seen].map(([name, isDir]) => ({ name, isDir }));
+    },
+  };
+  let devs = (await SlingRun.scanDevices(vfs, root)).map((d) => ({ name: d.name, files: d.files }));
+  // all clips in one folder: name the device after the folder ("CamA", not "C")
+  if (devs.length === 1 && paths.every((p) => p.lastIndexOf("/") === root.length) && root !== "/") devs[0].name = root.split("/").pop();
+  // 'B-roll/Cam A' joins 'Cam A' when its files are named the same way (the folder scan does
+  // this only when B-roll has several subfolders, which a few timeline clips may not show)
+  const names = (fs_) => new Set(fs_.map(SlingCore.looseDevice));
+  for (const d of [...devs]) {
+    const subs = new Set(d.files.map((f) => f.slice(join(root, d.name + "/").length).split("/")[0]));
+    if (subs.size !== 1 || !d.files.every((f) => f.startsWith(join(root, d.name + "/")))) continue;
+    const sub = [...subs][0].toLowerCase();
+    const into = devs.find((o) => o !== d && o.name.toLowerCase() === sub && [...names(d.files)].some((n) => names(o.files).has(n)));
+    if (into) { into.files = into.files.concat(d.files).sort(); devs = devs.filter((o) => o !== d); }
+  }
+  const covered = new Set(devs.flatMap((d) => d.files));
+  const extra = new Map();
+  for (const p of paths) {
+    if (covered.has(p)) continue;
+    let k = SlingCore.looseDevice(p);
+    while (devs.some((d) => d.name === k)) k += " (2)";
+    if (!extra.has(k)) extra.set(k, []);
+    extra.get(k).push(p);
+  }
+  for (const [k, fs_] of extra) devs.push({ name: k, files: fs_ });
+  return devs.map((d) => SlingCore.deviceEntry(d.name, d.files)).filter((d) => d.files.length);
+}
+
+// ---- Sync Timeline: sync the clips in the open sequence (in a copy) ----
+// Devices come from the files (as a folder sync), not from the tracks. If every track holds one
+// device, the clips are moved into sync in a copy (trims and cuts kept). If devices share a track,
+// a new sequence is built with each camera/recorder on its own tracks (whole clips).
 async function syncTimeline() {
   const lines = [], log = (l) => lines.push(l);
   detailBox.textContent = "";
@@ -921,16 +970,25 @@ async function syncTimeline() {
         if (!only.size) only = null;
       }
     } catch (e) { log("couldn't read the timeline selection (" + e + "): syncing the whole timeline"); }
-    // 1. which file is on which track: a camera's device is its video track, a recorder's its audio track
+    // 1. devices from the files themselves (folders and names), as in a folder sync
     if (only) items0 = items0.filter((x) => only.has(x.key));
     const isMedia = (p) => p && SlingCore.isMedia(p.split("/").pop());
+    const paths = [...new Set(items0.map((x) => x.path).filter(isMedia))];
+    if (!paths.length) { say("The open sequence has no video or audio clips.", "err"); return; }
+    const devices = await devicesFromPaths(paths);
+    log("Devices from the files: " + devices.map((d) => `${d.name} (${d.files.length})`).join(", "));
     const devOf = new Map();
-    for (const x of items0) if (x.kind === "v" && isMedia(x.path) && !devOf.has(x.path)) devOf.set(x.path, `Video ${x.track + 1}`);
-    for (const x of items0) if (x.kind === "a" && isMedia(x.path) && !devOf.has(x.path)) devOf.set(x.path, `Audio ${x.track + 1}`);
-    if (!devOf.size) { say("The open sequence has no video or audio clips.", "err"); return; }
-    const names = [...new Set(devOf.values())].sort((a, b) => (a[0] !== b[0] ? (a[0] === "V" ? -1 : 1) : parseInt(a.split(" ")[1]) - parseInt(b.split(" ")[1])));
-    const devices = names.map((n) => SlingCore.deviceEntry(n, [...devOf].filter(([, d]) => d === n).map(([p]) => p).sort()));
-    log("Devices from tracks: " + devices.map((d) => `${d.name} (${d.files.length})`).join(", "));
+    for (const d of devices) for (const f of d.files) devOf.set(f, d.name);
+    // tracks holding clips of more than one device: then the clips get sorted onto new tracks
+    const perTrack = new Map();
+    for (const x of items0) {
+      if (!devOf.has(x.path)) continue;
+      const k = (x.kind === "v" ? "V" : "A") + (x.track + 1);
+      if (!perTrack.has(k)) perTrack.set(k, new Set());
+      perTrack.get(k).add(devOf.get(x.path));
+    }
+    const mixed = [...perTrack].filter(([, s]) => s.size > 1).map(([k, s]) => `${k}: ${[...s].join(", ")}`);
+    if (mixed.length) log("Tracks with more than one device: " + mixed.join("; "));
     // 2. sync
     const outDir = P0.path.split("/").slice(0, -1).join("/") + "/SlingSync";
     const { P, media } = await getEngine();
@@ -947,11 +1005,18 @@ async function syncTimeline() {
     const startOf = new Map(res.clips.map((c) => [c.path, c.start]));
     // 3. plan on the original first: if clips would collide, stop before changing anything
     const plan = await planTimeline(srcGuid, (x) => (startOf.has(x.path) ? (startOf.get(x.path) * TICKS + x.inPt) : null), only);
-    if (plan.overlaps.length) {
-      say("Can't sync this timeline: after syncing, clips would sit on top of each other on the same track:\n" +
-          plan.overlaps.slice(0, 5).join("\n") + (plan.overlaps.length > 5 ? `\n… ${plan.overlaps.length - 5} more` : "") +
-          "\nPut each camera and recorder on its own track(s)" + (only ? ", or move the other clips out of the way," : "") +
-          " and try again. Nothing was changed.", "err");
+    if (plan.overlaps.length) log("Clips would overlap on a track after syncing: " + plan.overlaps.slice(0, 10).join("; "));
+    if (mixed.length || plan.overlaps.length) {
+      // devices share a track: build a new sequence with each camera/recorder on its own tracks
+      say("Cameras and recorders share tracks, so SlingSync is building a new sequence with each one on its own tracks…");
+      showBar(0.85);
+      const note = await buildFromBin(res, name, log);
+      showBar(null);
+      const synced = res.counts.synced || 0;
+      say(`${note}\nEach camera and recorder is on its own tracks (${devices.length} devices), whole clips (trims and cuts in your timeline aren't carried over).\n` +
+          `${only ? `${only.size} selected clips, ` : ""}${synced} of ${res.files} files synced by sound` +
+          (res.files - synced ? `, ${res.files - synced} to check (see ${res.report.split("/").pop()})` : "") +
+          ".\nYour original sequence is unchanged.", "ok");
       return;
     }
     // 4. copy the sequence and move its clips into sync
