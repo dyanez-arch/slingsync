@@ -55,7 +55,7 @@
     const out = [];
     for (const d of devices) {
       const entry = C.deviceEntry(d, await mediaFiles(P, P.join(project, d)));
-      if (entry.files.length) out.push(entry);
+      if (entry.files.length && !C.isAudioExport(d, entry.files)) out.push(entry);
     }
     if (out.length) return out;
     const groups = new Map();

@@ -1083,10 +1083,19 @@ def _device_entry(name, found):
             "camera": any(os.path.splitext(f)[1].lower() in VIDEO_EXT for f in files)}
 
 
+def _is_audio_export(dname, files):
+    """A folder of WAVs that SlingSync itself exported ('<name>_audio/<device> - ch1.wav'):
+    output, not a device. Without this, a loose-files shoot that was exported once would be
+    'synced' as one device made of its own exported audio."""
+    return dname.lower().endswith("_audio") and all(
+        re.search(r" - ch\d+\.wav$", os.path.basename(f), re.I) for f in files)
+
+
 def scan_devices(project):
     """List device subfolders and their media files (no decoding).
 
-    Skips hidden files and Premiere auto-save/preview folders. Proxies (Premiere's
+    Skips hidden files, Premiere auto-save/preview folders and SlingSync's own audio
+    exports (<name>_audio). Proxies (Premiere's
     *_Proxy files) are skipped when their original is also in the device folder, and
     used when it isn't. Folders with no media are left out."""
     devices = sorted(d for d in os.listdir(project)
@@ -1095,7 +1104,7 @@ def scan_devices(project):
     out = []
     for dname in devices:
         entry = _device_entry(dname, _media_files(os.path.join(project, dname)))
-        if entry["files"]:
+        if entry["files"] and not _is_audio_export(dname, entry["files"]):
             out.append(entry)
     if out:
         return out

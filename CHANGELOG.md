@@ -6,6 +6,9 @@ What was tested with each build is in the [testing log](docs/testing.md).
 
 ## 1.2.0b2 (next test build)
 
+### Fixed
+- **Loose-files shoots synced again after an audio export lost their video** (found on Mark Borthwick, 2026-11-18): the `<name>_audio` folder that *Also export audio files* creates was taken for a device subfolder, so only the exported WAVs were synced and the cameras and recorder were ignored (0 video tracks). SlingSync's own audio-export folders are now never treated as devices (app and panel). Borthwick now: 3 of 3 clips synced, 2 video + 9 audio tracks, identical in both engines.
+
 ### Added
 - **Compact timeline** (app checkbox, `--compact`, panel button **Compact Timeline…**): a second XML, `…_compact.xml`, with every stretch where nothing was recording cut out, so the day plays as one block for review or a transcript. Overlapping clips move together; blocks are joined frame-exactly (no black frames). Kishorn: 5 h 03 min → 1 h 27 min, 52 recording blocks, sync kept in every block, 0-frame gaps; app and panel engines write byte-identical files. App checkbox tested offscreen; not yet checked in Premiere.
 - **Premiere panel step 2 (panel 0.2):** **Sync Shoot Folder…** in the panel opens the SlingSync app with that folder (via a `slingsync://` link that the app now registers). The app syncs it, reports progress to the panel through a small `.slingsync_status.json` file in the folder, and the panel imports the synced sequence. Option to also export audio files. Tested with the app driven offscreen, including a folder name with a space and an accent; not yet tested in Premiere.

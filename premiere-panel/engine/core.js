@@ -1041,12 +1041,15 @@
       proxies_used: files.filter((f) => proxyBase(f) !== null).length,
       camera: files.some((f) => VIDEO_EXT.has(ext(f))) };
   }
+  // engine._is_audio_export: a folder of WAVs SlingSync exported itself is output, not a device
+  const isAudioExport = (dname, files) => dname.toLowerCase().endsWith("_audio") &&
+    files.every((f) => / - ch\d+\.wav$/i.test(basename(f)));
   const isMedia = (fn) => !fn.startsWith(".") && (VIDEO_EXT.has(ext(fn)) || AUDIO_EXT.has(ext(fn)));
   const skipDir = (d) => d.startsWith(".") || SKIP_DIRS.has(d.toLowerCase());
 
   const api = { SR, FRAME_S, CACHE_DIR, VIDEO_EXT, AUDIO_EXT, Cancelled, pyRound, pyFixed, percentile, median,
     parseIso, dateCandidates, parseTc, resolveDates, probeFromInfo, fft, fingerprint, matchAll, refine,
-    place, buildXml, compactClips, rateXml, tc, reportText, proxyBase, looseDevice, deviceEntry, isMedia, skipDir,
+    place, buildXml, compactClips, rateXml, tc, reportText, proxyBase, looseDevice, deviceEntry, isAudioExport, isMedia, skipDir,
     basename, ext, pyQuote, utf8Decode };
   root.SlingCore = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
