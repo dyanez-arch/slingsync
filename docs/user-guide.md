@@ -80,6 +80,10 @@ A proxy's own file date is when it was transcoded, so SlingSync never uses it. M
 
 When it finishes, the window shows a summary and lists anything that needs checking. **Show XML in Finder** and **Open Report** take you to the outputs.
 
+**Next shooting day:** click **Sync Another Folder** in the results, or **New Sync** at the top (**File → New Sync**, ⌘N). This clears the window but keeps your options. You can also just drop another folder on the window at any time.
+
+**Help:** the **Help** button (or **Help → SlingSync Quick Guide**) opens a short guide inside the app. The Help menu also links to this user guide, troubleshooting, and a page for reporting problems. **About SlingSync** is in the SlingSync menu.
+
 ## 4. Import into Premiere
 
 **File → Import…** and choose `<project name>_synced.xml` in the project folder. Premiere creates a sequence that links to the media files in place: your originals, or the proxies if only proxies were in the folder. Don't move or rename the media before importing.

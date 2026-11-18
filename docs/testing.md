@@ -2,6 +2,18 @@
 
 What has actually been run, on what, and what hasn't been tested yet. Newest first.
 
+## 2026-11-17: Installed app (test DMG from GitHub Actions) + Kishorn shoot, 111 clips: ✅ verified in Premiere
+
+**App install (Dani, Apple Silicon Mac):** downloaded the test build artifact from GitHub Actions and dragged it to Applications. On first launch macOS showed its "can't verify… free of malware" warning with **Move to Trash / Done**. Clicked Done, then **System Settings → Privacy & Security → Open Anyway**, and it opened. Right-click → Open was not needed or offered. The README's first-launch steps were rewritten from this.
+
+**Kishorn Pens AM** (a shoot SlingSync had never seen), synced from the installed app. Proxies, 5 devices: Audio 12 WAVs, Cam A 29, Cam B 58, Drone 10 (no audio), GoPro 2 chapters.
+- 32 synced by sound, 79 placed by date, 0 not placed. One track per device.
+- Device clocks: recorder, Cam A and Cam B each checked against sound 7 to 15 times, all within 0.0 s. GoPro checked once. Drone is a guess.
+- Clock drift on long takes: at most ±8 ms at the ends ("fine").
+- Progress bar and results worked in the app. **Premiere: "looks great"** (Dani).
+
+**App UI additions tested offscreen** (window driven by script, screenshots checked): logo in header and About, New Sync / Sync Another Folder reset the window and a new folder loads and syncs, Help menu and quick guide, About box. A locally built `.app` contains the logo at the path the app reads it from and launches. **Not yet tried by hand** in the installed app.
+
 ## 2026-11-17: Scotland site visit, 131 clips, 5 devices: ✅ verified in Premiere
 
 **Media:** device subfolders on an SSD, all proxies (no originals present):
@@ -80,7 +92,10 @@ Generated with known offsets: 3 devices, steady ambience plus sparse events, a d
 
 - [x] A many-clip shoot imported into Premiere (Scotland, above)
 - [ ] Original camera files (MXF/MOV) rather than proxies, on a many-clip shoot
-- [ ] The built `.app` / DMG: install, Gatekeeper first launch, drag-and-drop, progress, cancel
+- [x] The built DMG: install, first launch, choose folder, progress, results (Kishorn, above)
+- [ ] Cancel during a sync, in the installed app
+- [ ] New Sync / Help / About in the installed app (tested offscreen only)
+- [ ] First launch on a second Mac, recording macOS's exact wording
 - [ ] Mixed frame rates in one project (23.976 / 25 / 29.97 / 50)
 - [ ] Variable-frame-rate phone footage
 - [ ] Paths with accented characters

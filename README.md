@@ -47,6 +47,7 @@ From then on SlingSync opens normally. (On older macOS versions, right-clicking 
 2. Open SlingSync and drop the project folder onto the window.
 3. Check the device list, then click **Sync**.
 4. In Premiere, choose **File → Import…** and pick the `…_synced.xml` file that appears in the project folder.
+5. For the next shooting day, click **Sync Another Folder** (or **New Sync**). The **Help** button opens a quick guide inside the app.
 
 Anything that couldn't be synced by sound is marked orange (placed by its device's clock) or red (couldn't be placed), and listed in the app and in `SlingSync_report.txt`, so you only check those clips by eye.
 

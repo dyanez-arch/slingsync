@@ -6,6 +6,7 @@ version = re.search(r'__version__ = "(.+?)"', open("slingsync/__init__.py").read
 a = Analysis(
     ["app.py"],
     pathex=["."],
+    datas=[("slingsync/resources/icon.png", "slingsync/resources")],
     excludes=[
         "tkinter", "matplotlib", "pandas", "IPython",
         "PySide6.QtWebEngineCore", "PySide6.QtWebEngineWidgets", "PySide6.QtWebEngineQuick",

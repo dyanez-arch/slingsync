@@ -9,8 +9,8 @@ slingsync/
     __main__.py            python -m slingsync → cli.main
     cli.py                 argparse CLI wrapping engine.run
     engine.py              all sync logic: probe, analyse, fingerprint, match, refine, place, XML, report
-    gui.py                 PySide6 desktop app
-assets/icon.png            app icon source (converted to .icns at build time)
+    gui.py                 PySide6 desktop app (window, Help menu, quick guide, About)
+    resources/icon.png     logo: shown in the app, converted to the .icns app icon at build time
 scripts/build_mac.sh       builds dist/SlingSync.app and a .dmg
 scripts/make_test_project.py   synthetic project with known answers (regression test)
 SlingSync.spec             PyInstaller spec
@@ -81,7 +81,7 @@ bash scripts/build_mac.sh
 The script:
 
 1. Installs requirements and PyInstaller.
-2. Generates `build/SlingSync.icns` from `assets/icon.png` (`sips` + `iconutil`).
+2. Generates `build/SlingSync.icns` from `slingsync/resources/icon.png` (`sips` + `iconutil`).
 3. Runs PyInstaller with `SlingSync.spec` (unused Qt modules excluded to keep the size down; minimum macOS 12).
 4. Ad-hoc signs the app (`codesign --sign -`) so Apple Silicon will launch it.
 5. Builds `dist/SlingSync-<version>-macOS-<AppleSilicon|Intel>.dmg` with an Applications shortcut.

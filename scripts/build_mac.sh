@@ -7,11 +7,11 @@ cd "$(dirname "$0")/.."
 python3 -m pip install --upgrade pip
 python3 -m pip install -r requirements.txt pyinstaller
 
-# App icon (.icns) from assets/icon.png
+# App icon (.icns) from slingsync/resources/icon.png
 rm -rf build/icon.iconset && mkdir -p build/icon.iconset
 for s in 16 32 128 256 512; do
-  sips -z $s $s assets/icon.png --out "build/icon.iconset/icon_${s}x${s}.png" >/dev/null
-  sips -z $((s * 2)) $((s * 2)) assets/icon.png --out "build/icon.iconset/icon_${s}x${s}@2x.png" >/dev/null
+  sips -z $s $s slingsync/resources/icon.png --out "build/icon.iconset/icon_${s}x${s}.png" >/dev/null
+  sips -z $((s * 2)) $((s * 2)) slingsync/resources/icon.png --out "build/icon.iconset/icon_${s}x${s}@2x.png" >/dev/null
 done
 iconutil -c icns build/icon.iconset -o build/SlingSync.icns
 

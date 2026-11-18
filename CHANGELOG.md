@@ -10,6 +10,7 @@ First fixes from testing on real footage. See [docs/testing.md](docs/testing.md)
 - **Clock drift.** Long takes are lined up at the middle of the overlap, and the drift between devices is measured and listed in the report with a verdict (fine / check the ends / out of sync).
 - **`--verbose`** on the CLI (and a `log` callback in `engine.run`) prints every file's channels, levels and date, every match with its offset, votes and drift, and the final placement.
 - A clear error if the drive disconnects during a sync.
+- **App:** logo in the window and About box; **New Sync** (⌘N) and **Sync Another Folder** to start the next shooting day; **Help** button and menu with an in-app quick guide, links to the online guide, troubleshooting and issue reporting; **About SlingSync**.
 - `scripts/make_test_project.py`: a synthetic project with known answers for regression testing.
 - The app's device list shows when proxies are being used, and warns when devices were guessed from file names.
 - **Camera timecode** is used to place clips. Record-run timecode is detected and ignored, while GoPro-style chapters are kept back to back.
@@ -25,6 +26,9 @@ First fixes from testing on real footage. See [docs/testing.md](docs/testing.md)
 - **Devices that share no sound are placed by their own dates** instead of all being parked at the end as NOT PLACED. If a device's clock is clearly wrong (e.g. set to the wrong year), its clips start at the beginning of the timeline with their spacing kept, and the report flags "its clock is a guess".
 - Premiere auto-save and preview folders are ignored, and folders with no media no longer appear as devices.
 - README: clearer about what "no timecode needed" means (sound sync needs none; timecode and dates help place clips that share no sound), plus a status section linking to the testing log.
+- The logo moved to `slingsync/resources/icon.png`, so it is bundled with the package and the app.
+- Report: silent channels are summarised per device instead of listed per file.
+- First-launch instructions updated for current macOS: **Done**, then **Privacy & Security → Open Anyway**.
 - CI builds on `macos-15` (the `macos-14` runner is retired).
 
 ### Fixed

@@ -5,12 +5,12 @@ import sys
 import threading
 
 from PySide6.QtCore import QObject, Qt, QThread, QUrl, Signal
-from PySide6.QtGui import QDesktopServices
+from PySide6.QtGui import QAction, QDesktopServices, QIcon, QKeySequence, QPixmap
 from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QComboBox,
-                               QFileDialog, QFrame, QHBoxLayout, QHeaderView, QLabel,
-                               QListWidget, QMainWindow, QMessageBox, QProgressBar,
-                               QPushButton, QSizePolicy, QTableWidget, QTableWidgetItem,
-                               QVBoxLayout, QWidget)
+                               QDialog, QDialogButtonBox, QFileDialog, QFrame, QHBoxLayout,
+                               QHeaderView, QLabel, QListWidget, QMainWindow, QMessageBox,
+                               QProgressBar, QPushButton, QSizePolicy, QTableWidget,
+                               QTableWidgetItem, QTextBrowser, QVBoxLayout, QWidget)
 
 from . import __version__
 from . import engine
@@ -19,6 +19,77 @@ FPS_CHOICES = [("Match first camera", None), ("23.976", 24000 / 1001), ("24", 24
                ("25", 25.0), ("29.97", 30000 / 1001), ("30", 30.0), ("50", 50.0),
                ("59.94", 60000 / 1001), ("60", 60.0)]
 AUTO_CH = "All live channels (recommended)"
+ICON = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources", "icon.png")
+REPO = "https://github.com/dyanez-arch/slingsync"
+DOCS = REPO + "/blob/main/docs/"
+COPYRIGHT = "© 2026 Daniel Juan Yanez Villagomez"
+
+
+def logo(size):
+    pm = QPixmap(ICON)
+    if pm.isNull():
+        return QPixmap()
+    dpr = 2.0
+    pm = pm.scaled(int(size * dpr), int(size * dpr), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+    pm.setDevicePixelRatio(dpr)
+    return pm
+
+
+GUIDE_HTML = """
+<h2>Quick guide</h2>
+
+<h3>1. Make a project folder</h3>
+<p>One folder per shooting day, with <b>one subfolder per camera or recorder</b>:</p>
+<pre>Interview Day 1/
+    Cam A/      clips from camera A (card folders inside are fine)
+    Cam B/
+    Recorder/   multichannel WAVs</pre>
+<p>Folder names become track names in Premiere. Loose files with no subfolders also work:
+SlingSync then guesses the devices from the file names, so check the device list.</p>
+<p><b>Proxies:</b> Premiere <i>_Proxy</i> files are skipped when the original is there, and
+used when it isn't (the sequence then points at the proxies).</p>
+
+<h3>2. Sync</h3>
+<p>Drop the folder on the window (or click <b>Choose Folder…</b>), check the device list,
+then click <b>Sync</b>. The first sync of a folder reads every file. Syncing the same folder
+again is much faster, because the analysis is saved in a hidden <i>.slingsync_cache</i>
+folder inside it.</p>
+<p><b>Sync using</b> lets you pick one channel of a device (e.g. the ambient mic). The default,
+all live channels, is usually best.</p>
+
+<h3>3. Import into Premiere</h3>
+<p><b>File → Import…</b> and choose the <i>…_synced.xml</i> file in the project folder.
+Each device gets its own video track and one audio track per channel.</p>
+
+<h3>4. What the colours mean</h3>
+<table cellpadding="4">
+<tr><td><b>No colour</b></td><td>Synced by sound with at least one other device.</td></tr>
+<tr><td><b style="color:#e8912d">Orange</b></td><td>Placed by date: shares no sound with another
+device (cutaways, drone, a camera rolling while the recorder was off). Positioned by its device's
+clock, checked against nearby synced clips. Worth a look.</td></tr>
+<tr><td><b style="color:#d64545">Red</b></td><td>Not placed: no usable sound or date. Parked
+after the end of the timeline.</td></tr>
+</table>
+<p>The report (<b>Open Report</b>) lists every clip to check, how reliable each device's clock
+was, clock drift on long takes, and silent channels.</p>
+
+<h3>5. Next shooting day</h3>
+<p>Click <b>New Sync</b> (⌘N) or <b>Sync Another Folder</b>, or just drop another folder on
+the window.</p>
+
+<h3>Tips</h3>
+<ul>
+<li>Syncing by sound needs no timecode. Timecode and correct camera clocks help place clips
+that share no sound.</li>
+<li>Give every camera some scratch audio, even a poor on-camera mic.</li>
+<li>Work from an SSD or a reliable drive. Bus-powered USB hard drives can disconnect during
+long reads.</li>
+</ul>
+
+<p>More: <a href="{docs}user-guide.md">full user guide</a> ·
+<a href="{docs}troubleshooting.md">troubleshooting</a> ·
+<a href="{repo}/issues">report a problem</a></p>
+""".format(docs=DOCS, repo=REPO)
 
 
 def reveal(path):
@@ -164,6 +235,13 @@ class MainWindow(QMainWindow):
         lay.setContentsMargins(22, 18, 22, 18)
         lay.setSpacing(12)
 
+        header = QHBoxLayout()
+        header.setSpacing(14)
+        mark = QLabel()
+        mark.setPixmap(logo(56))
+        header.addWidget(mark)
+        titles = QVBoxLayout()
+        titles.setSpacing(0)
         title = QLabel("SlingSync")
         tf = title.font()
         tf.setPointSize(tf.pointSize() + 10)
@@ -171,8 +249,18 @@ class MainWindow(QMainWindow):
         title.setFont(tf)
         sub = QLabel("Sync cameras and multitrack audio by sound. No timecode required.")
         sub.setObjectName("muted")
-        lay.addWidget(title)
-        lay.addWidget(sub)
+        titles.addWidget(title)
+        titles.addWidget(sub)
+        header.addLayout(titles, 1)
+        self.new_btn = QPushButton("New Sync")
+        self.new_btn.setToolTip("Clear everything and start a new shooting day (⌘N)")
+        self.new_btn.clicked.connect(self.reset)
+        self.new_btn.setVisible(False)
+        help_btn = QPushButton("Help")
+        help_btn.clicked.connect(self.show_help)
+        header.addWidget(self.new_btn, 0, Qt.AlignTop)
+        header.addWidget(help_btn, 0, Qt.AlignTop)
+        lay.addLayout(header)
 
         self.drop = DropZone()
         self.drop.folderDropped.connect(self.load_folder)
@@ -250,9 +338,12 @@ class MainWindow(QMainWindow):
         self.reveal_btn.clicked.connect(lambda: reveal(self.result["xml"]))
         self.report_btn = QPushButton("Open Report")
         self.report_btn.clicked.connect(lambda: open_file(self.result["report"]))
+        self.again_btn = QPushButton("Sync Another Folder")
+        self.again_btn.clicked.connect(self.reset)
         btns.addWidget(self.reveal_btn)
         btns.addWidget(self.report_btn)
         btns.addStretch()
+        btns.addWidget(self.again_btn)
         hint = QLabel("In Premiere: File → Import… and choose the XML.")
         hint.setObjectName("muted")
         rl.addWidget(self.summary)
@@ -265,6 +356,95 @@ class MainWindow(QMainWindow):
         lay.addStretch(0)
 
         self.setStyleSheet("QLabel#muted { color: #8a8a8a; }")
+        self._menus()
+
+    # ---- menus, help, about ----
+    def _menus(self):
+        mb = self.menuBar()
+        filem = mb.addMenu("File")
+        new = QAction("New Sync", self)
+        new.setShortcut(QKeySequence.New)
+        new.triggered.connect(self.reset)
+        choose = QAction("Choose Folder…", self)
+        choose.setShortcut(QKeySequence.Open)
+        choose.triggered.connect(self.drop.choose)
+        filem.addAction(new)
+        filem.addAction(choose)
+        helpm = mb.addMenu("Help")
+        guide = QAction("SlingSync Quick Guide", self)
+        guide.setShortcut(QKeySequence.HelpContents)
+        guide.triggered.connect(self.show_help)
+        helpm.addAction(guide)
+        for label, url in (("Full User Guide (online)", DOCS + "user-guide.md"),
+                           ("Troubleshooting (online)", DOCS + "troubleshooting.md"),
+                           ("Report a Problem…", REPO + "/issues")):
+            a = QAction(label, self)
+            a.triggered.connect(lambda _=False, u=url: QDesktopServices.openUrl(QUrl(u)))
+            helpm.addAction(a)
+        about = QAction("About SlingSync", self)
+        about.setMenuRole(QAction.AboutRole)        # goes to the app menu on macOS
+        about.triggered.connect(self.show_about)
+        helpm.addSeparator()
+        helpm.addAction(about)
+
+    def show_help(self):
+        dlg = QDialog(self)
+        dlg.setWindowTitle("SlingSync Quick Guide")
+        dlg.resize(620, 640)
+        v = QVBoxLayout(dlg)
+        text = QTextBrowser()
+        text.setOpenExternalLinks(True)
+        text.setHtml(GUIDE_HTML)
+        v.addWidget(text)
+        bb = QDialogButtonBox(QDialogButtonBox.Close)
+        bb.rejected.connect(dlg.reject)
+        v.addWidget(bb)
+        dlg.exec()
+
+    def show_about(self):
+        dlg = QDialog(self)
+        dlg.setWindowTitle("About SlingSync")
+        v = QVBoxLayout(dlg)
+        v.setSpacing(8)
+        v.setContentsMargins(28, 24, 28, 18)
+        mark = QLabel()
+        mark.setPixmap(logo(96))
+        mark.setAlignment(Qt.AlignCenter)
+        name = QLabel(f"<h2>SlingSync</h2>Version {__version__}")
+        name.setAlignment(Qt.AlignCenter)
+        body = QLabel(
+            "Free multicam sync for Premiere Pro, by sound.<br><br>"
+            "Free and open source under the MIT License.<br>"
+            f"{COPYRIGHT}<br><br>"
+            f'<a href="{REPO}">{REPO.replace("https://", "")}</a>')
+        body.setAlignment(Qt.AlignCenter)
+        body.setOpenExternalLinks(True)
+        body.setWordWrap(True)
+        for w in (mark, name, body):
+            v.addWidget(w)
+        bb = QDialogButtonBox(QDialogButtonBox.Ok)
+        bb.accepted.connect(dlg.accept)
+        v.addWidget(bb)
+        dlg.exec()
+
+    # ---- start over ----
+    def reset(self):
+        """Back to an empty window, ready for the next shooting day (options are kept)."""
+        if self.worker:
+            return
+        self.folder = None
+        self.devices = []
+        self.result = None
+        self.folder_label.setText("")
+        self.table.setRowCount(0)
+        self.sync_btn.setEnabled(False)
+        self.fresh.setChecked(False)
+        self.status.setText("")
+        self.summary.setText("")
+        self.check_list.clear()
+        self.results.setVisible(False)
+        self.new_btn.setVisible(False)
+        self.drop.title.setText("Drop your project folder here")
 
     # ---- folder handling ----
     def load_folder(self, folder):
@@ -272,6 +452,8 @@ class MainWindow(QMainWindow):
             return
         self.folder = folder
         self.results.setVisible(False)
+        self.new_btn.setVisible(True)
+        self.drop.title.setText("Drop a different folder to switch")
         self.folder_label.setText(folder)
         self.table.setRowCount(0)
         self.sync_btn.setEnabled(False)
@@ -345,6 +527,7 @@ class MainWindow(QMainWindow):
         self.cancel_btn.setVisible(busy)
         self.drop.setEnabled(not busy)
         self.table.setEnabled(not busy)
+        self.new_btn.setEnabled(not busy)
         self.bar.setVisible(busy)
         self.results.setVisible(False)
         if busy:
@@ -397,6 +580,7 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("SlingSync")
     app.setApplicationVersion(__version__)
+    app.setWindowIcon(QIcon(ICON))
     w = MainWindow()
     w.show()
     sys.exit(app.exec())

@@ -20,5 +20,8 @@ slingsync-app = "slingsync.gui:main"
 [tool.setuptools]
 packages = ["slingsync"]
 
+[tool.setuptools.package-data]
+slingsync = ["resources/*"]
+
 [tool.setuptools.dynamic]
 version = { attr = "slingsync.__version__" }
