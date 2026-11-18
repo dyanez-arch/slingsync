@@ -68,6 +68,14 @@ What has actually been run, on what, and what hasn't been tested yet. Newest fir
 
 **Re-run after the Scotland changes (same day):** identical positions (to the millisecond). Also run in the app window (offscreen): the device list showed Cam A / Cam B as proxies and the "devices were guessed from file names" warning appeared. The sync completed with the same result. Before the fix, both camera↔recorder matches fell back to the coarse 16 ms result.
 
+## 2026-11-17 (late): 1.2.0b1 installed app: ✅ (Dani)
+
+**Build:** 1.2.0b1 test build (Actions run 44219903752, commit `0e4f9b3`).
+- **About** shows the real version and build stamp, the first build to do so.
+- **Audio export** from the app (checkbox, then **Show Audio Files**): the WAVs lined up in an audio editor.
+- **Cancel** stopped promptly on a folder that hadn't been synced before.
+- Not yet tested: the Premiere panel.
+
 ## 2026-11-17 (evening): Night shoot, re-run from the installed app: ✅ worked (Dani)
 
 **Build:** 1.1.0b2 test build (the app and report still showed "1.0.0"). Same WD Elements USB drive and original Sony MXF files as the incomplete run below (85 media files, about 135 GB).
@@ -110,9 +118,11 @@ Generated with known offsets: 3 devices, steady ambience plus sparse events, a d
 - [x] A many-clip shoot imported into Premiere (Scotland, above)
 - [ ] Original camera files (MXF/MOV) rather than proxies, on a many-clip shoot
 - [x] The built DMG: install, first launch, choose folder, progress, results (Kishorn, above)
-- [ ] Faster Cancel and version/build display, in the installed app (new in 1.1.0b3; tested from source)
+- [x] Faster Cancel and version/build display, in the installed app (1.2.0b1)
+- [x] Audio-only WAV export, in the installed app (1.2.0b1)
 - [x] Cancel during a sync, in the installed app (1.1.0b1/b2: worked but took ~1 min to stop on long files; fixed in 1.1.0b3)
-- [ ] New Sync / Help / About in the installed app (tested offscreen only)
+- [ ] New Sync / Help in the installed app (tested offscreen only; About confirmed in 1.2.0b1)
+- [ ] Premiere Pro 2027 panel, step 1 (import)
 - [ ] First launch on a second Mac, recording macOS's exact wording
 - [ ] Mixed frame rates in one project (23.976 / 25 / 29.97 / 50)
 - [ ] Variable-frame-rate phone footage
