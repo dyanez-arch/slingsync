@@ -12,7 +12,7 @@
 
   function btn(id, fn) {
     document.getElementById(id).addEventListener("click", async () => {
-      out.textContent = "";
+      out.textContent = " ";                                 // "" doesn't always clear in UXP
       try { await fn(); } catch (e) { log("ERROR: " + (e && e.stack ? e.stack : e)); }
     });
   }
@@ -111,9 +111,13 @@
 
   // ---- Test 3: JavaScript speed for the sync maths (FFT spectrogram) ----
   btn("labDsp", async () => {
-    const SR = 8000, N = 512, HOP = 128, minutes = 10;
+    log("Test 3 started…");
+    await sleep(50);                                        // let the panel redraw
+    const SR = 8000, N = 512, HOP = 128, minutes = 1;
     const x = new Float32Array(SR * 60 * minutes);
     for (let i = 0; i < x.length; i++) x[i] = Math.random() - 0.5;
+    log("Made 1 min of test audio. Analysing…");
+    await sleep(50);
     const t0 = now();
     const re = new Float64Array(N), im = new Float64Array(N);
     const win = new Float64Array(N).map((_, i) => 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (N - 1)));
@@ -135,6 +139,10 @@
         }
       }
       acc += re[10]; frames++;
+      if (frames % 500 === 0) {                             // show progress, keep Premiere responsive
+        log(`  ${frames} FFTs, ${((now() - t0) / 1000).toFixed(1)} s`);
+        await sleep(0);
+      }
     }
     const secs = (now() - t0) / 1000;
     log(`Spectrogram of ${minutes} min of audio (${frames} FFTs) in ${secs.toFixed(2)} s`);
