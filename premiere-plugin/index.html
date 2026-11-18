@@ -23,6 +23,15 @@
     #detailsWrap { margin-top: 8px; }
     #footer { margin-top: 18px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.12); }
     #about { margin-top: 6px; }
+    #setup { margin-top: 10px; padding: 10px; border-radius: 6px; background: rgba(255,255,255,0.06); }
+    .setupTitle { font-weight: bold; margin-bottom: 6px; }
+    .dev { display: flex; align-items: center; gap: 8px; padding: 4px 0;
+           border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .dev .name { flex: 1 1 auto; min-width: 0; }
+    .dev .count { color: #9a9a9a; font-size: 11px; }
+    .dev select, .row select { flex: 0 0 auto; font-size: 11px; }
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 8px 0 2px; color: #9a9a9a; }
+    #startSync { font-weight: bold; }
     #bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.12); margin-top: 12px; }
     #barFill { height: 6px; border-radius: 3px; background: #3b9cff; width: 0%; }
     #status { margin-top: 10px; padding: 10px; border-radius: 6px; background: rgba(255,255,255,0.06);
@@ -47,11 +56,28 @@
   <button id="syncFolder">Sync a Shoot…</button>
   <button id="compactFolder">Compact Timeline</button>
   <div class="muted hint"><b>Sync a Shoot</b>: pick the shoot folder (one subfolder per camera
-    or recorder). <b>Compact Timeline</b>: makes a copy of the open sequence with every gap
+    or recorder), check what was found, then Sync. <b>Compact Timeline</b>: makes a copy of the open sequence with every gap
     where nothing was recording cut out, for review or a transcript.</div>
 
-  <label class="small"><input type="checkbox" id="stems"> Also export audio files (one aligned WAV
-    per microphone, for audio editors)</label>
+  <!-- step 2 of Sync a Shoot: what was found, and settings -->
+  <div id="setup" hidden>
+    <div id="setupTitle" class="setupTitle"></div>
+    <div id="devList"></div>
+    <a href="#" id="optionsToggle" class="small">Options</a>
+    <div id="options" hidden>
+      <div class="row small"><span>Frame rate</span><select id="fps"></select></div>
+      <label class="small"><input type="checkbox" id="dropDead" checked> Leave out channels that are
+        silent in every file of a device</label>
+      <label class="small"><input type="checkbox" id="dropEach"> Also leave out channels that are
+        silent in individual clips</label>
+      <label class="small"><input type="checkbox" id="fresh"> Re-analyse everything (ignore saved
+        analysis)</label>
+      <label class="small"><input type="checkbox" id="stems"> Also export audio files (one aligned WAV
+        per microphone, for audio editors)</label>
+    </div>
+    <button id="startSync">Sync</button>
+    <a href="#" id="setupCancel" class="small">Choose another folder</a>
+  </div>
 
   <div id="bar" hidden><div id="barFill"></div></div>
   <div id="status" hidden></div>

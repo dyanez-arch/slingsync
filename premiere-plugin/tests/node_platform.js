@@ -25,6 +25,7 @@ module.exports = {
   async openWrite(p) { const h = next++; handles.set(h, fs.openSync(p, "w")); return h; },
   async writeAt(h, bytes, pos) { fs.writeSync(handles.get(h), bytes, 0, bytes.length, pos); },
   async close(h) { fs.closeSync(handles.get(h)); handles.delete(h); },
+  async remove(p) { fs.unlinkSync(p); },
   async readFile(p) { const b = fs.readFileSync(p); return new Uint8Array(b.buffer, b.byteOffset, b.length); },
   async writeFile(p, data) { fs.writeFileSync(p, typeof data === "string" ? data : Buffer.from(data.buffer, data.byteOffset, data.byteLength)); },
 };

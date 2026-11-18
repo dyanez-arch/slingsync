@@ -28,6 +28,7 @@ function setBusy(b) {
   busy = b;
   document.getElementById("syncFolder").disabled = b;
   document.getElementById("compactFolder").disabled = b;
+  document.getElementById("startSync").disabled = b;
   document.getElementById("cancel").hidden = !b;
 }
 
@@ -120,7 +121,8 @@ function panelVersion() {
   try { return "plug-in " + require("uxp").versions.plugin; } catch (e) { return "plug-in"; }
 }
 
-async function syncFolder(folderPath, folderName) {
+async function syncFolder(folderPath, folderName, settings) {
+  settings = settings || {};
   cancelRequested = false;
   detailBox.textContent = "";
   document.getElementById("detailsWrap").hidden = true;
@@ -132,7 +134,12 @@ async function syncFolder(folderPath, folderName) {
     const { P, media } = await getEngine();
     const res = await SlingRun.run(P, media, folderPath, {
       version: panelVersion(),
-      stems: document.getElementById("stems").checked,
+      refChannels: settings.refChannels || {},
+      fps: settings.fps || null,
+      keepSilent: !!settings.keepSilent,
+      skipSilentClips: !!settings.skipSilentClips,
+      clearCache: !!settings.clearCache,
+      stems: !!settings.stems,
       isCancelled: () => cancelRequested,
       progress: (f, m) => { showBar(f); say("Syncing " + folderName + "…\n" + m); },
       log: (line) => lines.push(line),
@@ -166,6 +173,7 @@ function toggle(linkId, boxId, showText, hideText) {
   });
 }
 toggle("detailsToggle", "detailsBox", "Show details", "Hide details");
+toggle("optionsToggle", "options", "Options", "Hide options");
 toggle("aboutToggle", "about");
 
 document.getElementById("copyDetails").addEventListener("click", async (ev) => {
@@ -186,12 +194,96 @@ async function guarded(fn) {
   try { await fn(); } finally { setBusy(false); }
 }
 
+// ---- Sync a Shoot: 1. pick folder → show devices and settings, 2. Sync ----
+// Same choices as the desktop app (gui.FPS_CHOICES, AUTO_CH, the option checkboxes).
+const FPS_CHOICES = [["Match first camera", null], ["23.976", 24000 / 1001], ["24", 24], ["25", 25],
+  ["29.97", 30000 / 1001], ["30", 30], ["50", 50], ["59.94", 60000 / 1001], ["60", 60]];
+const AUTO_CH = "All live channels (recommended)";
+let pending = null;                           // { path, name, devs } waiting for Sync
+
+(function fillFps() {
+  const sel = document.getElementById("fps");
+  FPS_CHOICES.forEach(([label], i) => { const o = document.createElement("option"); o.value = String(i); o.textContent = label; sel.appendChild(o); });
+})();
+
+function showSetup(show) {
+  document.getElementById("setup").hidden = !show;
+  document.getElementById("syncFolder").hidden = show;
+  document.getElementById("compactFolder").hidden = show;
+}
+
+function renderDevices(devs) {
+  const list = document.getElementById("devList");
+  list.textContent = "";
+  devs.forEach((d, k) => {
+    const row = document.createElement("div"); row.className = "dev";
+    const name = document.createElement("div"); name.className = "name";
+    name.textContent = d.name;
+    const count = document.createElement("div"); count.className = "count";
+    count.textContent = `${d.files.length} ${d.camera ? "clips" : "files"}` +
+      (d.channels ? ` · ${d.channels} ch` : "") +
+      (d.proxies_used ? ` · ${d.proxies_used} proxies` : "") +
+      (d.skipped_proxies ? ` · ${d.skipped_proxies} proxies skipped` : "");
+    name.appendChild(document.createElement("br")); name.appendChild(count);
+    const sel = document.createElement("select"); sel.id = "ch" + k;
+    const add = (v, t) => { const o = document.createElement("option"); o.value = v; o.textContent = t; sel.appendChild(o); };
+    add("0", d.channels ? AUTO_CH : "No audio");
+    for (let ch = 1; ch <= d.channels; ch++) add(String(ch), `Only channel ${ch}`);
+    sel.title = "Which audio to sync this device with. All live channels is usually the most reliable.";
+    row.appendChild(name); row.appendChild(sel);
+    list.appendChild(row);
+  });
+}
+
+function readSettings(devs) {
+  const refChannels = {};
+  devs.forEach((d, k) => { const v = Number(document.getElementById("ch" + k).value); if (v > 0) refChannels[d.name] = v; });
+  return {
+    refChannels,
+    fps: FPS_CHOICES[Number(document.getElementById("fps").value)][1],
+    keepSilent: !document.getElementById("dropDead").checked,
+    skipSilentClips: document.getElementById("dropEach").checked,
+    clearCache: document.getElementById("fresh").checked,
+    stems: document.getElementById("stems").checked,
+  };
+}
+
 document.getElementById("syncFolder").addEventListener("click", () => guarded(async () => {
   const project = await ppro.Project.getActiveProject();
   if (!project) { say("Open or create a Premiere project first.", "err"); return; }
   const folder = await fsys.getFolder();
-  if (folder) await syncFolder(folder.nativePath, folder.name);
+  if (!folder) return;
+  document.getElementById("detailsWrap").hidden = true;
+  say("Looking at “" + folder.name + "”…");
+  try {
+    const { P, media } = await getEngine();
+    const devs = await SlingRun.scanWithChannels(P, media, folder.nativePath);
+    if (!devs.length) { say("No video or audio files found in “" + folder.name + "”.", "err"); return; }
+    pending = { path: folder.nativePath, name: folder.name, devs };
+    const total = devs.reduce((n, d) => n + d.files.length, 0);
+    document.getElementById("setupTitle").textContent = `${folder.name}: ${total} files from ${devs.length} devices`;
+    renderDevices(devs);
+    say("");
+    showSetup(true);
+  } catch (e) {
+    say("Couldn't read the folder:\n" + (e && e.message ? e.message : e), "err");
+  }
 }));
+
+document.getElementById("startSync").addEventListener("click", () => guarded(async () => {
+  if (!pending) return;
+  const job = pending, settings = readSettings(job.devs);
+  pending = null;
+  showSetup(false);
+  await syncFolder(job.path, job.name, settings);
+}));
+
+document.getElementById("setupCancel").addEventListener("click", (ev) => {
+  ev.preventDefault();
+  pending = null;
+  showSetup(false);
+  say("");
+});
 
 // ---- Compact Timeline: close every gap where no track has a clip, in a copy of the open sequence ----
 // Premiere's script objects stop working after any edit, and actions only work when created

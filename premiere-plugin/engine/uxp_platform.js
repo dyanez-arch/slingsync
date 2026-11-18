@@ -52,6 +52,7 @@
         const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
         await fs.write(h, ab, 0, bytes.byteLength, pos);
       },
+      async remove(p) { await fs.unlink(p); },
       async readFile(p) { return new Uint8Array(await fs.readFile(p)); },
       async writeFile(p, data) { await fs.writeFile(p, toBuffer(data)); },
     };

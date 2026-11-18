@@ -154,6 +154,7 @@ Generated with known offsets: 3 devices, steady ambience plus sparse events, a d
 - [x] Plug-in `.ccx` (0.10.3) installs by double-click and works in Premiere 2027 (2026-11-18)
 - [ ] Plug-in audio-file export inside Premiere (UXP `fs.write`)
 - [ ] Plug-in *Import a synced folder* link
+- [ ] Plug-in settings step (device list, Sync using, Options) inside Premiere
 - [x] Plug-in engine on a large shoot of original camera files (Devon 2nd Run, identical to the app)
 - [ ] First launch on a second Mac, recording macOS's exact wording
 - [ ] Devon 23 Oct and Illminster synced with the new device split (scan checked only)

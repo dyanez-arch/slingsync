@@ -10,6 +10,7 @@
 //     open(path) -> handle,  readAt(handle, size, pos) -> Uint8Array,  close(handle)
 //     readFile(path) -> Uint8Array,  writeFile(path, Uint8Array | string)
 //     openWrite(path) -> handle,  writeAt(handle, Uint8Array, pos)      (audio export)
+//     remove(path)                                                      (re-analyse)
 //   }
 //   media = SlingMedia instance whose read() calls platform.readAt
 (function (root) {
@@ -106,6 +107,20 @@
       groups.get(k).push(f);
     }
     return [...groups.keys()].sort().map((k) => C.deviceEntry(k, groups.get(k))).filter((e) => e.files.length);
+  }
+
+  // Devices with their channel counts, for the settings step (gui.ScanWorker / engine.device_channels)
+  async function scanWithChannels(P, media, project) {
+    const devs = await scanDevices(P, project);
+    for (const d of devs) {
+      let best = 0;
+      for (const f of d.files.slice(0, 3)) {
+        const info = await probe(P, media, f);
+        if (info) best = Math.max(best, info.nch);
+      }
+      d.channels = best;
+    }
+    return devs;
   }
 
   // ---- probe ----
@@ -418,7 +433,7 @@
   async function run(P, media, project, opts = {}) {
     const o = Object.assign({ refChannels: {}, fps: null, keepSilent: false, skipSilentClips: false,
       silenceDb: -60.0, flatDb: 3.0, minVotes: 12, output: null, name: null, cacheDir: null,
-      reportPath: null, compact: false, stems: false, stemsDir: null, stemsRate: null, version: "plug-in", progress: null, isCancelled: null, log: null }, opts);
+      reportPath: null, clearCache: false, compact: false, stems: false, stemsDir: null, stemsRate: null, version: "plug-in", progress: null, isCancelled: null, log: null }, opts);
     const outer = o.progress || (() => {});
     const say = o.stems ? (f, m) => outer(0.85 * f, m) : outer;   // last part of the bar: audio files
     const log = o.log || (() => {});
@@ -459,6 +474,10 @@
 
     const cacheDir = o.cacheDir || P.join(project, CACHE_DIR);
     if (!(await P.exists(cacheDir))) await P.mkdir(cacheDir);
+    if (o.clearCache) {                          // re-analyse: forget the plug-in's saved analysis
+      for (const e of await P.listDir(cacheDir)) if (!e.isDir && e.name.startsWith("js-")) await P.remove(P.join(cacheDir, e.name));
+      log("Saved analysis cleared: re-analysing every file");
+    }
     const jobs = [];
     for (const c of clips) {
       c.silent = []; c.used = []; c.note = "";
@@ -543,7 +562,7 @@
       stems: stemFiles, stems_dir: o.stems ? stemsDir : null };
   }
 
-  const api = { run, scanDevices, probe, analyze, exportStems, ANALYSIS_VERSION };
+  const api = { run, scanDevices, scanWithChannels, probe, analyze, exportStems, ANALYSIS_VERSION };
   root.SlingRun = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);
