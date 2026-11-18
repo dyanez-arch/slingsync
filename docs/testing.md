@@ -123,7 +123,7 @@ The plug-in's JavaScript engine is checked against the desktop app's engine with
 | Compact timeline engine (Kishorn) | ✅ 5 h 03 → 1 h 27, 52 blocks, sync kept in every block, 0-frame gaps, identical in both engines |
 | **Compact Timeline in Premiere** (plug-in 0.10.2) on Devon Night 2 | ✅ 181 clips, 47 blocks, 135.1 → 59.6 min, every clip where planned, original unchanged. Needed: actions created inside `lockedAccess` + `executeTransaction`, fresh objects after every edit |
 | Plug-in audio-file export vs app (synthetic) | ✅ same length and positions; samples within 1 least-significant bit (−138 dB) |
-| Devon 2nd Run (original 4K MXF, USB drive): plug-in engine vs app | ⏳ running |
+| Devon 2nd Run (139 files: original 4K Canon MXF + 3 recorders, USB drive): plug-in engine vs app | ✅ XML and compact XML byte-identical; same status for all 139 clips; report identical except 5 clip times differing by 1 ms in the last digit (rounding). Plug-in engine 48 min for 139 files, app 19 min for the 55 files it hadn't cached (about the same per file: the USB drive is the limit) |
 
 ## Synthetic tests (run after each change)
 
@@ -152,7 +152,7 @@ Generated with known offsets: 3 devices, steady ambience plus sparse events, a d
 - [x] Plug-in `.ccx` (0.10.3) installs by double-click and works in Premiere 2027 (2026-11-18)
 - [ ] Plug-in audio-file export inside Premiere (UXP `fs.write`)
 - [ ] Plug-in *Import a synced folder* link
-- [ ] Plug-in on a large shoot of original camera files (Devon comparison running)
+- [x] Plug-in engine on a large shoot of original camera files (Devon 2nd Run, identical to the app)
 - [ ] First launch on a second Mac, recording macOS's exact wording
 - [ ] Mixed frame rates in one project (23.976 / 25 / 29.97 / 50)
 - [ ] Variable-frame-rate phone footage
