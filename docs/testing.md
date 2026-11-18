@@ -46,7 +46,9 @@ What has actually been run, on what, and what hasn't been tested yet. Newest fir
 - 28 s total on an Apple Silicon Mac with 32 GB RAM, about 2.7 GB peak memory.
 - **Premiere:** imported without errors. One track per channel, video and audio linked, label colour shown, lip sync correct start to end (checked by Dani).
 
-**Fixed during this test:** loose-file grouping, proxy-only folders, drift-tolerant refinement. Before the fix, both camera↔recorder matches fell back to the coarse 16 ms result.
+**Fixed during this test:** loose-file grouping, proxy-only folders, drift-tolerant refinement.
+
+**Re-run after the Scotland changes (same day):** identical positions (to the millisecond). Also run in the app window (offscreen): the device list showed Cam A / Cam B as proxies and the "devices were guessed from file names" warning appeared. The sync completed with the same result. Before the fix, both camera↔recorder matches fell back to the coarse 16 ms result.
 
 ## 2026-11-17: Night shoot, 2 cameras + recorder + drone: ⚠️ incomplete
 

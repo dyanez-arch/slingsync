@@ -1159,6 +1159,8 @@ def write_report(path, name, seq_fps, nv, na, clips, lane_info, conflicts, skipp
                 q = "no sound link to other devices: clock is a guess"
             elif not eras:
                 q = "no sound-verified clips"
+            elif len(eras) == 1 and eras[0]["n"] == 1:
+                q = "checked against sound once (too few checks to tell whether it's steady)"
             elif len(eras) == 1:
                 q = (f"steady, checked against sound {eras[0]['n']} times "
                      f"(within {eras[0]['spread']:.1f} s)")
