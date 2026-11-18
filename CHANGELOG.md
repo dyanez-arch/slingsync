@@ -6,11 +6,10 @@ First fixes from testing on real footage. See [docs/testing.md](docs/testing.md)
 
 ### Added
 - **Loose files.** A project folder with no device subfolders now works. Files are grouped into devices by name (`A005C002…` → Cam A, `INTVW1T01/02.wav` → INTVW1T).
-- **Smart proxy handling.** Premiere `_Proxy` files are skipped when the original is present and used when it isn't. Proxy dates are ignored, because they're the transcode date, so proxies are placed by sound only.
+- **Smart proxy handling.** Premiere `_Proxy` files are skipped when the original is present and used when it isn't.
 - **Clock drift.** Long takes are lined up at the middle of the overlap, and the drift between devices is measured and listed in the report with a verdict (fine / check the ends / out of sync).
 - **`--verbose`** on the CLI (and a `log` callback in `engine.run`) prints every file's channels, levels and date, every match with its offset, votes and drift, and the final placement.
 - A clear error if the drive disconnects during a sync.
-
 - **Camera timecode** is used to place clips. Record-run timecode is detected and ignored, while GoPro-style chapters are kept back to back.
 - **Clocks that change mid-shoot** (e.g. cameras re-jammed at lunch) are handled: clips with no shared sound use the nearest sound-verified clip from the same device. A new **Device clocks** report section shows, for each device, whether its clock was steady, changed, or is a guess.
 - **Weak false matches** that contradict well-established device clocks are dropped.
