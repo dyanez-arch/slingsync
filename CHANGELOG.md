@@ -6,7 +6,7 @@ What was tested with each build is in the [testing log](docs/testing.md).
 
 ## 1.2.2 (2026-11-18)
 
-With the **Premiere Pro plug-in 0.14.0** (`SlingSync-PremierePro-plugin-0.14.0.ccx`).
+With the **Premiere Pro plug-in 0.14.0** (`SlingSync-PremierePro-plugin-0.14.0.ccx`). Built by GitHub Actions run [44396337153](https://github.com/dyanez-arch/slingsync/actions/runs/44396337153) from tag `v1.2.2`; [release page](https://github.com/dyanez-arch/slingsync/releases/tag/v1.2.2).
 
 ### Improved
 - **Tiny silent recordings are left out** (app and plug-in): audio-only files shorter than 10 s with no usable sound (a recorder started and stopped by accident) are no longer put on the timeline, where they could only be placed by date, sometimes a day away (Devon 2nd Run: a 2-second file from a recorder whose clock was never set made the sequence 24.5 hours long). They're listed in the report under *Left out of the timeline*.
