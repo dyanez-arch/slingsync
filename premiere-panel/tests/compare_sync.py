@@ -14,14 +14,15 @@ os.makedirs(outdir, exist_ok=True)
 
 # --- desktop app engine, redirected ---
 py_xml, py_rep = os.path.join(outdir, "py.xml"), os.path.join(outdir, "py_report.txt")
-if not os.path.exists(py_rep) or "--rerun-py" in sys.argv:
+if not os.path.exists(os.path.join(outdir, "py_compact.xml")) or "--rerun-py" in sys.argv:
     engine.CACHE_DIR = os.path.join(outdir, "py_cache")      # absolute: os.path.join keeps it
     orig = engine.write_report
     engine.write_report = lambda path, *a, **k: orig(py_rep, *a, **k)
     lines = []
     t = time.time()
-    engine.run(project, output=py_xml, log=lines.append)
+    engine.run(project, output=py_xml, log=lines.append, compact=True)
     open(os.path.join(outdir, "py_log.txt"), "w").write("\n".join(lines) + "\n")
+    os.replace(os.path.join(outdir, os.path.basename(project) + "_compact.xml"), os.path.join(outdir, "py_compact.xml"))
     print(f"app engine: {time.time() - t:.0f} s")
 
 # --- panel engine ---
@@ -30,6 +31,11 @@ r = subprocess.run(["node", os.path.join(HERE, "run_sync.js"), project, outdir])
 if r.returncode:
     sys.exit("panel engine failed")
 print(f"panel engine: {time.time() - t:.0f} s")
+os.replace(os.path.join(outdir, os.path.basename(project) + "_compact.xml"), os.path.join(outdir, "js_compact.xml"))
+for kind in ("", "_compact"):
+    same = open(os.path.join(outdir, f"py{kind or ''}.xml" if kind else os.path.join(outdir, "py.xml")), "rb").read() == \
+        open(os.path.join(outdir, f"js{kind}.xml"), "rb").read()
+    print(f"XML{kind or ''}: {'identical' if same else 'DIFFERENT'}")
 
 def clips(rep):
     out, on = {}, False

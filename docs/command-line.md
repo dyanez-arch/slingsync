@@ -31,6 +31,7 @@ slingsync PROJECT [options]
 | `--audio` | off | Also write aligned 24-bit WAV files, one per device channel, for any audio editor. See [Audio only](user-guide.md#4b-audio-only-podcasts-music-interviews-no-premiere-needed) |
 | `--audio-dir DIR` | `<project>/<name>_audio` | Where to write the WAV files |
 | `--audio-rate N` | most common rate in the project | Sample rate of the WAV files, e.g. `48000` |
+| `--compact` | off | Also write `<name>_compact.xml`: the same sync with every stretch where nothing is recording cut out (one continuous block, for review or a transcript) |
 | `--min-votes N` | `12` | Match strictness. Higher means fewer but more certain matches |
 | `--workers N` | CPU count − 1, max 6 | Files analysed at once |
 | `-v`, `--verbose` | off | Print details for every file (channels, levels, date), every match (offset, votes, drift) and the final placement. Useful when something didn't sync |

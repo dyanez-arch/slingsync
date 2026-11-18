@@ -32,6 +32,9 @@ def main(argv=None):
     ap.add_argument("--audio-dir", help="folder for the WAV files (default <project>/<name>_audio)")
     ap.add_argument("--audio-rate", type=int, help="sample rate of the WAV files (default: most "
                     "common rate in the project)")
+    ap.add_argument("--compact", action="store_true",
+                    help="also write <name>_compact.xml: the same sync with every stretch where "
+                         "nothing is recording cut out, one continuous block (for review/transcripts)")
     ap.add_argument("--min-votes", type=int, default=12, help="match strictness (default 12)")
     ap.add_argument("--workers", type=int, help="files analysed at once")
     ap.add_argument("-v", "--verbose", action="store_true",
@@ -62,12 +65,14 @@ def main(argv=None):
                   flat_db=a.flat_db, min_votes=a.min_votes, workers=a.workers,
                   output=a.output, name=a.name, clear_cache=a.clear_cache, progress=progress,
                   stems=a.audio, stems_dir=a.audio_dir, stems_rate=a.audio_rate,
-                  log=(lambda m: print(m, flush=True)) if a.verbose else None)
+                  compact=a.compact, log=(lambda m: print(m, flush=True)) if a.verbose else None)
     except (ValueError, Cancelled) as e:
         sys.exit(str(e) or "Cancelled")
     print()
     print("Summary: " + ", ".join(f"{v} {k}" for k, v in sorted(res["counts"].items())))
     print(f"XML:    {res['xml']}")
+    if res.get("compact_xml"):
+        print(f"Compact: {res['compact_xml']}")
     print(f"Report: {res['report']}")
     if res.get("stems"):
         print(f"Audio:  {len(res['stems'])} WAV files in {res['stems_dir']}")

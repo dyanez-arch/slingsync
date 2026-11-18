@@ -243,7 +243,7 @@
   async function run(P, media, project, opts = {}) {
     const o = Object.assign({ refChannels: {}, fps: null, keepSilent: false, skipSilentClips: false,
       silenceDb: -60.0, flatDb: 3.0, minVotes: 12, output: null, name: null, cacheDir: null,
-      reportPath: null, version: "panel", progress: null, isCancelled: null, log: null }, opts);
+      reportPath: null, compact: false, version: "panel", progress: null, isCancelled: null, log: null }, opts);
     const say = o.progress || (() => {});
     const log = o.log || (() => {});
     const checkCancel = () => { if (o.isCancelled && o.isCancelled()) throw new Cancelled(); };
@@ -340,6 +340,14 @@
     const [xml, laneInfo, nv, na] = C.buildXml(clips, devices, name, seqFps, o.keepSilent, o.skipSilentClips);
     const out = o.output || P.join(project, `${name}_synced.xml`);
     await P.writeFile(out, xml);
+    let compactXml = null;
+    if (o.compact) {                             // one continuous block, no empty stretches
+      const cc = C.compactClips(clips, seqFps);
+      compactXml = P.join(out.slice(0, out.lastIndexOf("/")) || project, `${name}_compact.xml`);
+      await P.writeFile(compactXml, C.buildXml(cc, devices, `${name} (compact)`, seqFps, o.keepSilent, o.skipSilentClips)[0]);
+      const endOf = (cs) => Math.max(...cs.map((c) => c.start + c.duration));
+      log(`Compact timeline: ${C.tc(endOf(cc))} (full day ${C.tc(endOf(clips))}) -> ${compactXml}`);
+    }
     const reportPath = o.reportPath || P.join(project, "SlingSync_report.txt");
     const [report, counts] = C.reportText({ version: o.version, name, seqFps, nv, na, clips, laneInfo, conflicts,
       skipped, edges, clock, devices, stems: null, relPath: (p) => P.relPath(p, project) });
@@ -348,7 +356,7 @@
     const need = [...clips].sort((a, b) => a.start - b.start).filter((c) => c.status !== "synced")
       .map((c) => ({ status: c.status, file: c.rel, at: C.tc(c.start), note: c.note }));
     return { xml: out, report: reportPath, counts, need_check: need, files: clips.length, skipped, devices,
-      video_tracks: nv, audio_tracks: na, fps: seqFps, clips, edges };
+      video_tracks: nv, audio_tracks: na, fps: seqFps, clips, edges, compact_xml: compactXml };
   }
 
   const api = { run, scanDevices, probe, analyze, ANALYSIS_VERSION };

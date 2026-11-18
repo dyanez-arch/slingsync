@@ -7,6 +7,7 @@ Pure Python + numpy/scipy; audio decoding via PyAV (bundled FFmpeg libraries).
 
 import datetime
 import hashlib
+import math
 import json
 import os
 import re
@@ -889,6 +890,27 @@ def build_xml(clips, devices, seq_name, seq_fps, keep_silent, skip_silent_clips)
     return "\n".join(out), lane_info, len(video_tracks), len(audio_tracks)
 
 
+def compact_clips(clips, seq_fps):
+    """Copies of the clips with every stretch where nothing is recording (no camera, no
+    recorder) cut out, so the whole day plays as one continuous block, e.g. for review or
+    a transcript. Clips that overlap keep their exact relation (they move together). Blocks
+    move by whole frames and are joined frame-exactly, the way build_xml counts frames, so
+    no black frame is left between them."""
+    _, tb, ntsc = rate_xml(seq_fps)
+    fps = tb * 1000 / 1001 if ntsc else tb
+    out = sorted(({**c} for c in clips), key=lambda c: c["start"])
+    cursor, shift, block_end = 0, 0, None          # frames
+    for c in out:
+        f0 = int(round(c["start"] * fps))
+        f1 = f0 + max(1, int(round(c["duration"] * fps)))
+        if block_end is None or f0 > block_end:     # a new block starts here
+            shift, block_end = f0 - cursor, f0
+        block_end = max(block_end, f1)
+        cursor = block_end - shift
+        c["start"] -= shift / fps
+    return sorted(out, key=lambda c: c["idx"])
+
+
 # ---- audio stems (for any audio editor, no Premiere needed) ------------------
 WAV_LIMIT = 4 * 1024 ** 3 - 1024          # plain WAV files can't exceed 4 GB
 
@@ -1097,7 +1119,7 @@ def device_channels(files, sample=3):
 def run(project, ref_channels=None, fps=None, keep_silent=False, skip_silent_clips=False,
         silence_db=-60.0, flat_db=3.0, min_votes=12, workers=None, output=None, name=None,
         clear_cache=False, progress=None, cancel=None, log=None, stems=False, stems_dir=None,
-        stems_rate=None):
+        stems_rate=None, compact=False):
     """Sync a project folder (one subfolder per device). Returns a result dict.
 
     progress(fraction 0..1, message) is called along the way; set the threading.Event
@@ -1243,6 +1265,15 @@ def run(project, ref_channels=None, fps=None, keep_silent=False, skip_silent_cli
     out = output or os.path.join(project, f"{name}_synced.xml")
     with open(out, "w", encoding="utf-8") as fh:
         fh.write(xml)
+    compact_xml = None
+    if compact:                                  # one continuous block, no empty stretches
+        cc = compact_clips(clips, seq_fps)
+        compact_xml = os.path.join(os.path.dirname(out), f"{name}_compact.xml")
+        with open(compact_xml, "w", encoding="utf-8") as fh:
+            fh.write(build_xml(cc, devices, f"{name} (compact)", seq_fps, keep_silent,
+                               skip_silent_clips)[0])
+        log(f"Compact timeline: {tc(max(c['start'] + c['duration'] for c in cc))} "
+            f"(full day {tc(max(c['start'] + c['duration'] for c in clips))}) -> {compact_xml}")
     stem_files, stems_dir = [], stems_dir or os.path.join(project, f"{name}_audio")
     if stems:
         stem_files = export_stems(clips, devices, lane_info, stems_dir, stems_rate,
@@ -1259,7 +1290,8 @@ def run(project, ref_channels=None, fps=None, keep_silent=False, skip_silent_cli
     return {"xml": out, "report": report_path, "counts": counts, "need_check": need,
             "files": len(clips), "skipped": skipped, "devices": devices,
             "video_tracks": nv, "audio_tracks": na, "fps": seq_fps,
-            "stems": stem_files, "stems_dir": stems_dir if stems else None}
+            "stems": stem_files, "stems_dir": stems_dir if stems else None,
+            "compact_xml": compact_xml}
 
 
 def write_report(path, name, seq_fps, nv, na, clips, lane_info, conflicts, skipped, proj, edges=(),

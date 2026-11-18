@@ -895,6 +895,23 @@
     return [out.join("\n"), laneInfo, videoTracks.length, audioTracks.length];
   }
 
+  // engine.compact_clips: copies with every stretch where nothing is recording cut out,
+  // blocks joined frame-exactly (in the frames buildXml uses)
+  function compactClips(clips, seqFps) {
+    const [, tb, ntsc] = rateXml(seqFps);
+    const fps = ntsc ? tb * 1000 / 1001 : tb;
+    const out = clips.map((c) => Object.assign({}, c)).sort((a, b) => a.start - b.start);
+    let cursor = 0, shift = 0, blockEnd = null;
+    for (const c of out) {
+      const f0 = pyRound(c.start * fps), f1 = f0 + Math.max(1, pyRound(c.duration * fps));
+      if (blockEnd === null || f0 > blockEnd) { shift = f0 - cursor; blockEnd = f0; }
+      blockEnd = Math.max(blockEnd, f1);
+      cursor = blockEnd - shift;
+      c.start -= shift / fps;
+    }
+    return out.sort((a, b) => a.idx - b.idx);
+  }
+
   // ---- report (engine.tc, engine.write_report) ----
   function tc(s) {
     s = Math.max(0, s);
@@ -1029,7 +1046,7 @@
 
   const api = { SR, FRAME_S, CACHE_DIR, VIDEO_EXT, AUDIO_EXT, Cancelled, pyRound, pyFixed, percentile, median,
     parseIso, dateCandidates, parseTc, resolveDates, probeFromInfo, fft, fingerprint, matchAll, refine,
-    place, buildXml, rateXml, tc, reportText, proxyBase, looseDevice, deviceEntry, isMedia, skipDir,
+    place, buildXml, compactClips, rateXml, tc, reportText, proxyBase, looseDevice, deviceEntry, isMedia, skipDir,
     basename, ext, pyQuote, utf8Decode };
   root.SlingCore = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;

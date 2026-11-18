@@ -10,9 +10,10 @@ Requires **Premiere Pro 2027 (27.0) or later** (Adobe's UXP plugin system).
 |---|---|---|
 | 1 | Import a SlingSync XML (pick a shoot folder or the XML) and check the sequence really appeared | Panel loads in Premiere 2027 ✅; import itself not yet tested |
 | 2 | **Sync Shoot Folder…** through the desktop app (temporary bridge, see below) | Built (panel 0.2+, app 1.2.0b2); not yet tested in Premiere |
-| 3 | **Panel engine:** syncing inside Premiere with no app needed | In progress (see below) |
+| 3 | **Panel engine:** syncing inside Premiere with no app needed | ✅ Works in Premiere 2027 (Kishorn, 2026-11-18); identical results to the app. Audio-file export not ported yet |
 | 4 | Sync from Premiere bins instead of folders | Planned |
 | — | **About** (version, creator, GitHub, report a problem) | Added in 0.4, not yet tested in Premiere |
+| — | **Compact Timeline…**: the day as one block, no empty stretches | Added in 0.8; engine checked against the app; not yet tested in Premiere |
 
 ### Panel engine (step 3)
 

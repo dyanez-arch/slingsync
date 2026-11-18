@@ -27,6 +27,7 @@ function showBar(frac) {
 function setBusy(b) {
   busy = b;
   document.getElementById("syncFolder").disabled = b;
+  document.getElementById("compactFolder").disabled = b;
   document.getElementById("cancel").hidden = !b;
 }
 
@@ -109,7 +110,7 @@ function panelVersion() {
   try { return "panel " + require("uxp").versions.plugin; } catch (e) { return "panel"; }
 }
 
-async function syncFolder(folderPath, folderName) {
+async function syncFolder(folderPath, folderName, compact) {
   cancelRequested = false;
   detailBox.textContent = "";
   document.getElementById("detailsWrap").hidden = true;
@@ -121,6 +122,7 @@ async function syncFolder(folderPath, folderName) {
     const { P, media } = await getEngine();
     const res = await SlingRun.run(P, media, folderPath, {
       version: panelVersion(),
+      compact: !!compact,
       isCancelled: () => cancelRequested,
       progress: (f, m) => { showBar(f); say("Syncing " + folderName + "…\n" + m); },
       log: (line) => lines.push(line),
@@ -131,8 +133,9 @@ async function syncFolder(folderPath, folderName) {
     const check = res.files - synced;
     const mins = ((Date.now() - t0) / 60000).toFixed(1);
     const summary = `${synced} of ${res.files} clips synced by sound` +
-      (check ? `, ${check} to check (see SlingSync_report.txt)` : "") + ` · ${mins} min.\n`;
-    await importXml(res.xml, summary);
+      (check ? `, ${check} to check (see SlingSync_report.txt)` : "") + ` · ${mins} min.\n` +
+      (compact ? "Compact timeline: every stretch with no recording cut out.\n" : "");
+    await importXml(compact ? res.compact_xml : res.xml, summary);
   } catch (e) {
     detailBox.textContent = lines.join("\n");
     document.getElementById("detailsWrap").hidden = !lines.length && !(e && e.stack);
@@ -179,6 +182,15 @@ document.getElementById("syncFolder").addEventListener("click", () => guarded(as
   if (!project) { say("Open or create a Premiere project first.", "err"); return; }
   const folder = await fsys.getFolder();
   if (folder) await syncFolder(folder.nativePath, folder.name);
+}));
+
+// Same sync (fast if the folder was synced before: the analysis is saved), then the
+// compact version is imported: one block with no empty stretches.
+document.getElementById("compactFolder").addEventListener("click", () => guarded(async () => {
+  const project = await ppro.Project.getActiveProject();
+  if (!project) { say("Open or create a Premiere project first.", "err"); return; }
+  const folder = await fsys.getFolder();
+  if (folder) await syncFolder(folder.nativePath, folder.name, true);
 }));
 
 document.getElementById("fromFolder").addEventListener("click", (ev) => { ev.preventDefault(); guarded(async () => {

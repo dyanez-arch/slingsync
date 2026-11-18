@@ -15,7 +15,8 @@
     h1 { font-size: 16px; margin: 0; }
     .muted { color: #9a9a9a; }
     button { display: block; width: 100%; margin: 8px 0; padding: 8px; font-size: 12px; }
-    #syncFolder { font-weight: bold; padding: 12px; font-size: 13px; }
+    #syncFolder { font-weight: bold; padding: 12px; font-size: 13px; margin-bottom: 4px; }
+    #compactFolder { margin-top: 0; }
     .hint { margin: 2px 0 4px; }
     .small { font-size: 11px; }
     #detailsWrap { margin-top: 8px; }
@@ -43,7 +44,10 @@
   </header>
 
   <button id="syncFolder">Sync a Shoot…</button>
-  <div class="muted hint">Pick the shoot folder: one subfolder per camera or recorder.</div>
+  <button id="compactFolder">Compact Timeline…</button>
+  <div class="muted hint">Pick the shoot folder: one subfolder per camera or recorder.
+    <b>Compact Timeline</b> also cuts out every stretch where nothing was recording: the
+    whole day as one continuous block, for review or a transcript.</div>
 
   <div id="bar" hidden><div id="barFill"></div></div>
   <div id="status" hidden></div>

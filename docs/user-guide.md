@@ -121,6 +121,14 @@ Drop **all of them at the very start (0:00) of the timeline** in any audio edito
 - **Mics at different distances** hear the same voice a few milliseconds apart (sound travels about 1 m every 3 ms). SlingSync keeps each microphone's natural timing. If you mix two mics on the same voice and it sounds hollow, nudge one by a few milliseconds or use only the closest mic.
 - Clips with no shared sound are placed by their device's clock, exactly as in the XML (see the report).
 
+## 4c. Compact timeline: the whole day as one block (review, transcripts)
+
+Tick **Also make a compact timeline** (desktop app), use **Compact Timeline…** (Premiere panel) or `--compact` (command line). SlingSync writes a second XML, `<project>_compact.xml`, next to the normal one: the same sync, but every stretch where **nothing** was recording (no camera, no recorder) is cut out, so the day plays as one continuous block with no black gaps.
+
+- Clips that overlap stay in sync with each other: each block of overlapping recordings moves as one piece, by whole frames.
+- Your normal synced sequence is unchanged; the compact one is separate.
+- Use it to send reviewers a shorter version of everything recorded that day, or to make a single transcript. Example: a 5-hour shooting day with 1 h 27 min of actual recording becomes a 1 h 27 min sequence.
+
 ## 5. The report
 
 `SlingSync_report.txt` is written next to the XML. It contains:

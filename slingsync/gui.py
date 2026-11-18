@@ -102,6 +102,12 @@ in any audio editor (Audacity, Reaper, Logic, Descript, GarageBand…) and they 
 the audio sample. No Premiere or video needed: a folder of recorder and phone audio works.
 Long shooting days make big files (about 0.5 GB per hour per channel).</p>
 
+<h3>Compact timeline (review, transcripts)</h3>
+<p>Tick <b>Also make a compact timeline</b> to get a second XML, <i>…_compact.xml</i>: the
+same sync with every stretch where nothing was recording cut out, so the whole day plays as
+one continuous block. Clips that overlap stay in sync. Handy for reviewers, or to make one
+transcript of everything recorded that day.</p>
+
 <h3>5. Next shooting day</h3>
 <p>Click <b>New Sync</b> (⌘N) or <b>Sync Another Folder</b>, or just drop another folder on
 the window.</p>
@@ -332,7 +338,11 @@ class MainWindow(QMainWindow):
         self.stems.setToolTip("Written to a '…_audio' folder in the project. Import them all at "
                               "the start of the timeline in Audacity, Reaper, Logic, Descript, "
                               "GarageBand… and they line up. Long shooting days make big files.")
-        for w in (self.drop_dead, self.drop_each, self.fresh, self.stems):
+        self.compact = QCheckBox("Also make a compact timeline: every stretch where nothing was "
+                                 "recording cut out (for review or a transcript)")
+        self.compact.setToolTip("Writes a second XML, '…_compact.xml': the same sync as one "
+                                "continuous block. Clips that overlap stay in sync with each other.")
+        for w in (self.drop_dead, self.drop_each, self.fresh, self.stems, self.compact):
             lay.addWidget(w)
 
         row = QHBoxLayout()
@@ -600,7 +610,8 @@ class MainWindow(QMainWindow):
                       keep_silent=not self.drop_dead.isChecked(),
                       skip_silent_clips=self.drop_each.isChecked(),
                       clear_cache=self.fresh.isChecked(),
-                      stems=self.stems.isChecked())
+                      stems=self.stems.isChecked(),
+                      compact=self.compact.isChecked())
         self.worker = SyncWorker(kwargs)
         self.worker.progress.connect(self.on_progress)
         self.worker.done.connect(self.on_done)
@@ -648,7 +659,8 @@ class MainWindow(QMainWindow):
             f"<b>Done.</b> {synced} of {res['files']} clips synced by sound · "
             f"{res['video_tracks']} video and {res['audio_tracks']} audio tracks at "
             f"{res['fps']:.3f} fps."
-            + (f" · {len(res['stems'])} audio files." if res.get("stems") else ""))
+            + (f" · {len(res['stems'])} audio files." if res.get("stems") else "")
+            + (" · Compact timeline: <i>…_compact.xml</i>." if res.get("compact_xml") else ""))
         self.stems_btn.setVisible(bool(res.get("stems")))
         need = res["need_check"]
         self.check_list.clear()

@@ -7,9 +7,16 @@ What was tested with each build is in the [testing log](docs/testing.md).
 ## 1.2.0b2 (next test build)
 
 ### Added
+- **Compact timeline** (app checkbox, `--compact`, panel button **Compact Timeline…**): a second XML, `…_compact.xml`, with every stretch where nothing was recording cut out, so the day plays as one block for review or a transcript. Overlapping clips move together; blocks are joined frame-exactly (no black frames). Kishorn: 5 h 03 min → 1 h 27 min, 52 recording blocks, sync kept in every block, 0-frame gaps; app and panel engines write byte-identical files. App checkbox tested offscreen; not yet checked in Premiere.
 - **Premiere panel step 2 (panel 0.2):** **Sync Shoot Folder…** in the panel opens the SlingSync app with that folder (via a `slingsync://` link that the app now registers). The app syncs it, reports progress to the panel through a small `.slingsync_status.json` file in the folder, and the panel imports the synced sequence. Option to also export audio files. Tested with the app driven offscreen, including a folder name with a space and an accent; not yet tested in Premiere.
 - App **About** now credits the creator (link to GitHub profile) and links to Issues. Plus a link to support development on [Ko-fi](https://ko-fi.com/pisdronio) (app, panel, README, and GitHub's **Sponsor** button via `.github/FUNDING.yml`). Tested offscreen.
 - **Docs:** new [Desktop app and Premiere panel](docs/desktop-app-and-premiere-panel.md) page explaining the two tools, why they're built differently and how they relate; README, docs index, code layout and panel README reorganised around it.
+
+### Premiere panel 0.5 – 0.8 (development, not packaged)
+- 0.5: FFmpeg WebAssembly decoder runs inside Premiere (Test 6): a 4K Canon MXF's 8 audio tracks and timecode read correctly, same speed as the app on the same USB drive.
+- 0.6: **the panel's own engine**: **Sync Shoot Folder…** runs a JavaScript port of the sync engine inside Premiere, no app needed (the `slingsync://` bridge to the app is no longer used). Checked against the app: Kishorn (111 clips) and the synthetic project give byte-identical XML and identical reports. Synced Kishorn inside Premiere 2027 successfully (2026-11-18). 0.6.1: clipboard copy via UXP `setContent`, Copy details.
+- 0.7: simpler layout: one main button; progress, result and details only when needed; import and About as small links; developer tests moved into About.
+- 0.8: **Compact Timeline…** button.
 
 ### Premiere panel 0.3 – 0.4 (development, not packaged)
 - 0.3: temporary **Developer tests** to check a panel-only engine is feasible. Run in Premiere Pro 2027 on 2026-11-18: direct WAV reading ✅ fast, Media Encoder ✅ slow (fallback only), JavaScript speed ✅, built-in audio decoder ❌ none, WebAssembly ✅.
