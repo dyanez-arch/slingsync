@@ -24,7 +24,13 @@ Full guides are in [`docs/`](docs/README.md): [user guide](docs/user-guide.md), 
 
 Get the latest `.dmg` from the [Releases](../../releases) page, open it, and drag **SlingSync** into Applications.
 
-**First launch:** the app isn't notarised by Apple yet, so macOS will block it the first time. Right-click (or Control-click) SlingSync in Applications, choose **Open**, then **Open** again. You only need to do this once. On recent macOS versions you may instead need to go to **System Settings → Privacy & Security** and click **Open Anyway**.
+**First launch:** SlingSync is free and isn't signed with a paid Apple developer account, so macOS blocks it the first time. This is expected, and you only do it once:
+
+1. Open **SlingSync** from Applications. macOS says it can't verify that SlingSync is free of malware, and offers **Move to Trash** or **Done**. Click **Done**, not Move to Trash.
+2. Open **System Settings → Privacy & Security** and scroll down to the **Security** section. You'll see a message that SlingSync was blocked. Click **Open Anyway**.
+3. Confirm with your password or Touch ID, then click **Open Anyway** once more if asked.
+
+From then on SlingSync opens normally. (On older macOS versions, right-clicking the app and choosing **Open** also works.)
 
 ## How to use
 

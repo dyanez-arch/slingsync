@@ -1187,11 +1187,35 @@ def write_report(path, name, seq_fps, nv, na, clips, lane_info, conflicts, skipp
         for e in conflicts[:50]:
             R.append(f"  {clips[e['a']]['rel']}  <->  {clips[e['b']]['rel']}")
         R.append("")
-    R.append("Silent channels (left out of the timeline when silent in every file of a device):")
-    silent = [c for c in clips if c["silent"]]
-    for c in silent:
-        R.append(f"  {c['rel']}: silent ch {c['silent']}, synced using ch {c['used'] or '-'}")
-    if not silent:
+    def chs(xs):
+        """[2,3,4,5,8] -> '2-5, 8'"""
+        xs, out = sorted(xs), []
+        for x in xs:
+            if out and x == out[-1][1] + 1:
+                out[-1][1] = x
+            else:
+                out.append([x, x])
+        return ", ".join(f"{a}-{b}" if b > a else f"{a}" for a, b in out)
+
+    R.append("Silent channels (ignored for syncing; left out of the timeline when silent in every")
+    R.append("file of a device, unless that option is switched off):")
+    any_silent = False
+    for d in sorted({c["dev"] for c in clips}):
+        dc = [c for c in clips if c["dev"] == d and c["nch"]]
+        if not dc:
+            continue
+        common = set.intersection(*(set(c["silent"]) for c in dc))
+        name = devices[d] if d < len(devices) else str(d)
+        if common:
+            any_silent = True
+            R.append(f"  {name}: ch {chs(common)} silent in all {len(dc)} files")
+        for c in dc:
+            extra = sorted(set(c["silent"]) - common)
+            if extra:
+                any_silent = True
+                R.append(f"    {c['rel']}: {'also ' if common else ''}silent ch {chs(extra)}, synced using "
+                         + (f"ch {chs(c['used'])}" if c["used"] else "nothing (no usable sound)"))
+    if not any_silent:
         R.append("  none")
     if skipped:
         R.append("")

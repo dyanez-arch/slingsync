@@ -6,8 +6,11 @@ The folder you chose has no subfolders. Choose the folder *above* your device fo
 **"No video or audio files found in the device subfolders"**
 None of the files have a recognised extension. See the list in the [user guide](user-guide.md#2-set-up-the-project-folder). Hidden files and folders (starting with `.`) are skipped.
 
+**macOS says it can't verify SlingSync is free of malware ("Move to Trash" / "Done")**
+Expected on first launch, because the app isn't signed with a paid Apple developer account. Click **Done**, then **System Settings → Privacy & Security → Open Anyway**. See the [first-launch steps](user-guide.md#first-launch).
+
 **macOS says the app is damaged or can't be opened**
-The app isn't notarised. Right-click → **Open**, or **System Settings → Privacy & Security → Open Anyway**. If macOS still refuses, run `xattr -dr com.apple.quarantine /Applications/SlingSync.app` in Terminal.
+Follow the first-launch steps above. If macOS still refuses, run `xattr -dr com.apple.quarantine /Applications/SlingSync.app` in Terminal.
 
 **"The drive or folder went offline during the sync"**
 The drive disconnected while SlingSync was reading it. Bus-powered USB hard drives can drop out under sustained full-speed reading even when normal playback is fine. Try a different cable or port (directly on the Mac, not a hub), a powered hub, or copy the shoot to an SSD. Sync again afterwards: finished files are cached and won't be re-read.

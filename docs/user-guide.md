@@ -6,7 +6,17 @@ SlingSync lines up clips from any number of cameras and audio recorders by match
 
 1. Download the latest `SlingSync-<version>-macOS-AppleSilicon.dmg` from the [Releases](https://github.com/dyanez-arch/slingsync/releases) page.
 2. Open it and drag **SlingSync** into **Applications**.
-3. The first time, macOS will block it because the app isn't notarised. Right-click SlingSync → **Open** → **Open**. On recent macOS you may need **System Settings → Privacy & Security → Open Anyway** instead. This is only needed once.
+3. Open it once by following the first-launch steps below.
+
+### First launch
+
+SlingSync is free and isn't signed with a paid Apple developer account, so macOS blocks it the first time. This is expected, and you only do it once:
+
+1. Open **SlingSync** from Applications. macOS says it can't verify that SlingSync is free of malware, and offers **Move to Trash** or **Done**. Click **Done**, not Move to Trash.
+2. Open **System Settings → Privacy & Security** and scroll down to the **Security** section. You'll see a message that SlingSync was blocked. Click **Open Anyway**.
+3. Confirm with your password or Touch ID, then click **Open Anyway** once more if asked.
+
+From then on SlingSync opens normally. (On older macOS versions, right-clicking the app and choosing **Open** also works.)
 
 Requires macOS 12 or later. Intel Macs: see [Development](development.md#running-from-source).
 
