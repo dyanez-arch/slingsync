@@ -30,6 +30,9 @@ Today macOS warns that the app is from an unverified developer (you allow it onc
 
 SlingSync stays free. When donations on **[Ko-fi](https://ko-fi.com/pisdronio)** cover the Apple fee, the app gets signed and notarised and the plug-in goes to Adobe's marketplace.
 
+### Speed: desktop app vs plug-in
+A fair, documented comparison on the same shoot: from an internal SSD and from a USB drive, nothing cached, Premiere idle. What's known so far: reading files is the same speed in both (on a USB drive the drive is the limit). The app analyses up to 6 files at once, while the plug-in does one at a time (Premiere gives plug-ins one thread), so the app should be faster on fast drives. This is not measured yet. Both stay free.
+
 ### More real-world testing
 Mixed frame rates in one project (23.976 / 25 / 29.97 / 50), variable-frame-rate phone footage, NAS and read-only drives (the analysis cache is written inside the shoot folder), and very long recordings on 8 GB Macs. See *Not tested yet* in the [testing log](testing.md).
 
