@@ -17,7 +17,8 @@ slingsync/
 scripts/build_mac.sh       builds dist/SlingSync.app and a .dmg
 scripts/make_test_project.py   synthetic project with known answers (regression test)
 SlingSync.spec             PyInstaller spec
-.github/workflows/build-mac.yml   CI build and release (desktop app)
+.github/workflows/build-mac.yml   CI build and release (desktop app + plug-in .ccx)
+.github/workflows/tests.yml       on every push: both engines on synthetic projects must match
 
 ── Premiere Pro plug-in (JavaScript + WebAssembly, UXP) ──
 premiere-plugin/

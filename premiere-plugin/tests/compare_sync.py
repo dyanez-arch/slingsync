@@ -32,10 +32,12 @@ if r.returncode:
     sys.exit("plug-in engine failed")
 print(f"plug-in engine: {time.time() - t:.0f} s")
 os.replace(os.path.join(outdir, os.path.basename(project) + "_compact.xml"), os.path.join(outdir, "js_compact.xml"))
+xml_same = True
 for kind in ("", "_compact"):
     same = open(os.path.join(outdir, f"py{kind or ''}.xml" if kind else os.path.join(outdir, "py.xml")), "rb").read() == \
         open(os.path.join(outdir, f"js{kind}.xml"), "rb").read()
     print(f"XML{kind or ''}: {'identical' if same else 'DIFFERENT'}")
+    xml_same &= same
 
 def clips(rep):
     out, on = {}, False
@@ -60,3 +62,17 @@ for d, k in diffs[:8]:
 for k in a:
     if k in b and a[k][1] != b[k][1]:
         print(f"  status differs: {k}: app {a[k][1]}, plug-in {b[k][1]}")
+
+# --expect "Rec/R1.m4a=0,CamA/A1.m4a=50,…": known positions (seconds, within 1 ms)
+expect_bad = []
+for arg in sys.argv:
+    if arg.startswith("--expect="):
+        for item in arg.split("=", 1)[1].split(","):
+            rel, t = item.rsplit("=", 1)
+            if rel not in a or abs(a[rel][0] - float(t)) > 0.001:
+                expect_bad.append(f"{rel}: expected {t} s, got {a.get(rel, ('missing',))[0]}")
+for e in expect_bad:
+    print("  WRONG POSITION " + e)
+ok = xml_same and same_status == len(a) == len(b) and not expect_bad
+print("RESULT:", "OK" if ok else "MISMATCH")
+sys.exit(0 if ok else 1)

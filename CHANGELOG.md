@@ -4,6 +4,18 @@ Every build that reaches anyone gets its own version number and section here. Te
 
 What was tested with each build is in the [testing log](docs/testing.md).
 
+## 1.2.2 (next)
+
+### Improved
+- **Tiny silent recordings are left out** (app and plug-in): audio-only files shorter than 10 s with no usable sound (a recorder started and stopped by accident) are no longer put on the timeline, where they could only be placed by date, sometimes a day away (Devon 2nd Run: a 2-second file from a recorder whose clock was never set made the sequence 24.5 hours long). They're listed in the report under *Left out of the timeline*.
+
+### Premiere Pro plug-in 0.13.3 – 0.14.0
+- 0.13.3: menus built as markup with a placeholder label (safeguard). 0.13.4: "1 file" instead of "1 files", wider menus. 0.14.0: tiny silent recordings left out, like the app.
+- Tested in Premiere 2027 (0.13.2): full sync of Devon 2nd Run, identical to the app (67 synced, 72 placed by date, 151 matches); Devon 23 Oct device list correct.
+
+### Repository
+- **Automatic checks on GitHub** (`.github/workflows/tests.yml`): every push syncs four synthetic projects (plain with known positions, a camera clock off by an hour, proxies, a tiny silent recording) with both the app's and the plug-in's engine and fails if the XML differs or a clip is misplaced.
+
 ## 1.2.1 (2026-11-18)
 
 Everything in 1.2.1b1 below, with the **Premiere Pro plug-in 0.13.2** (`SlingSync-PremierePro-plugin-0.13.2.ccx`) next to the DMG. Built by GitHub Actions run [44380187347](https://github.com/dyanez-arch/slingsync/actions/runs/44380187347) from tag `v1.2.1` (the first attempt was cancelled by GitHub after 15 minutes waiting for a build machine; rerun); [release page](https://github.com/dyanez-arch/slingsync/releases/tag/v1.2.1).

@@ -149,6 +149,10 @@ Tick **Also make a compact timeline** (desktop app), use **Compact Timeline…**
 - Your normal synced sequence is unchanged; the compact one is separate.
 - Use it to send reviewers a shorter version of everything recorded that day, or to make a single transcript. Example: a 5-hour shooting day with 1 h 27 min of actual recording becomes a 1 h 27 min sequence.
 
+## 4d. Left out: tiny silent recordings
+
+Audio-only files shorter than 10 seconds with no usable sound (a recorder started and stopped by accident) are left off the timeline and listed at the end of the report under *Left out of the timeline*. Camera clips are never left out.
+
 ## 5. The report
 
 `SlingSync_report.txt` is written next to the XML. It contains:

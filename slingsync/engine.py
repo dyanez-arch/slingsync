@@ -49,6 +49,7 @@ VIDEO_EXT = {".mp4", ".mov", ".mxf", ".mts", ".m2ts", ".avi", ".mkv", ".m4v",
 AUDIO_EXT = {".wav", ".bwf", ".aif", ".aiff", ".mp3", ".m4a", ".flac", ".aac",
              ".ogg", ".caf"}
 CACHE_DIR = ".slingsync_cache"
+EMPTY_MAX_S = 10.0        # silent audio-only recordings shorter than this are left out
 
 
 
@@ -1288,6 +1289,19 @@ def run(project, ref_channels=None, fps=None, keep_silent=False, skip_silent_cli
                 f.cancel()
             raise
 
+    # Tiny silent recordings (a recorder started and stopped by accident) carry nothing and
+    # can only be placed by date, often far from everything else (a recorder with an unset
+    # clock): leave them out of the timeline and list them in the report.
+    left_out = [c for c in clips if not c["has_video"] and not c["used"] and c["duration"] < EMPTY_MAX_S]
+    if left_out and len(left_out) < len(clips):
+        clips = [c for c in clips if c not in left_out]
+        for i, c in enumerate(clips):
+            c["idx"] = i
+        for c in left_out:
+            log(f"  left out (silent, {c['duration']:.1f}s, no video): {c['rel']}")
+    else:
+        left_out = []
+
     edges = match_all(clips, min_votes, 2.0,
                       progress=lambda fr, m: say(0.77 + 0.13 * fr, m), cancel=cancel)
     mono_cache = {}
@@ -1342,7 +1356,7 @@ def run(project, ref_channels=None, fps=None, keep_silent=False, skip_silent_cli
     report_path = os.path.join(project, "SlingSync_report.txt")
     counts = write_report(report_path, name, seq_fps, nv, na, clips, lane_info,
                           conflicts, skipped, project, edges, clock, devices,
-                          stems=(stems_dir, stem_files) if stems else None)
+                          stems=(stems_dir, stem_files) if stems else None, left_out=left_out)
     (outer if stems else say)(1.0, "Done")
     need = [{"status": c["status"], "file": c["rel"], "at": tc(c["start"]), "note": c["note"]}
             for c in sorted(clips, key=lambda c: c["start"]) if c["status"] != "synced"]
@@ -1354,7 +1368,7 @@ def run(project, ref_channels=None, fps=None, keep_silent=False, skip_silent_cli
 
 
 def write_report(path, name, seq_fps, nv, na, clips, lane_info, conflicts, skipped, proj, edges=(),
-                 clock=None, devices=(), stems=None):
+                 clock=None, devices=(), stems=None, left_out=()):
     counts = {}
     for c in clips:
         counts[c["status"]] = counts.get(c["status"], 0) + 1
@@ -1457,6 +1471,10 @@ def write_report(path, name, seq_fps, nv, na, clips, lane_info, conflicts, skipp
         R.append("")
         R.append("Unreadable files (skipped):")
         R += [f"  {os.path.relpath(p, proj)}" for p in skipped]
+    if left_out:
+        R.append("")
+        R.append(f"Left out of the timeline (silent recordings under {EMPTY_MAX_S:.0f} s, no video):")
+        R += [f"  {c['rel']}  ({c['duration']:.1f} s)" for c in left_out]
     R.append("")
     R.append("All clips:")
     for c in sorted(clips, key=lambda c: (c["dev"], c["start"])):

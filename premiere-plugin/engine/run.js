@@ -450,7 +450,8 @@
         (d.skipped_proxies ? `, skipped ${d.skipped_proxies} proxies (originals present)` : "") +
         (d.proxies_used ? `, using ${d.proxies_used} proxies (no originals)` : ""));
     }
-    const clips = [], skipped = [];
+    let clips = [];
+    const skipped = [];
     for (let k = 0; k < files.length; k++) {
       if (k % 5 === 0) await tick();
       checkCancel();
@@ -511,6 +512,15 @@
         `date ${c.date ? fmtDate(c.date) : "-"} (${c.date_src})` + (c.note ? `, NOTE ${c.note}` : ""));
     }
 
+    // engine.run: tiny silent recordings (no video, < EMPTY_MAX_S, nothing usable) are left out
+    let leftOut = clips.filter((c) => !c.has_video && !(c.used && c.used.length) && c.duration < C.EMPTY_MAX_S);
+    if (leftOut.length && leftOut.length < clips.length) {
+      const out = new Set(leftOut);
+      clips = clips.filter((c) => !out.has(c));
+      clips.forEach((c, i) => { c.idx = i; });
+      for (const c of leftOut) log(`  left out (silent, ${C.pyFixed(c.duration, 1)}s, no video): ${c.rel}`);
+    } else leftOut = [];
+
     const edges = C.matchAll(clips, o.minVotes, 2.0, (f, m) => say(0.77 + 0.13 * f, m), checkCancel);
     for (let k = 0; k < edges.length; k++) {
       if (k % 5 === 0) await tick();
@@ -552,7 +562,7 @@
     }
     const reportPath = o.reportPath || P.join(project, "SlingSync_report.txt");
     const [report, counts] = C.reportText({ version: o.version, name, seqFps, nv, na, clips, laneInfo, conflicts,
-      skipped, edges, clock, devices, stems: o.stems ? [stemsDir, stemFiles] : null, relPath: (p) => P.relPath(p, project) });
+      skipped, edges, clock, devices, stems: o.stems ? [stemsDir, stemFiles] : null, leftOut, relPath: (p) => P.relPath(p, project) });
     await P.writeFile(reportPath, report);
     outer(1.0, "Done");
     const need = [...clips].sort((a, b) => a.start - b.start).filter((c) => c.status !== "synced")

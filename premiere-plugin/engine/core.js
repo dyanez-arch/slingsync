@@ -12,6 +12,7 @@
     ".mpg", ".mpeg", ".3gp", ".insv", ".lrv"]);
   const AUDIO_EXT = new Set([".wav", ".bwf", ".aif", ".aiff", ".mp3", ".m4a", ".flac", ".aac", ".ogg", ".caf"]);
   const CACHE_DIR = ".slingsync_cache";
+  const EMPTY_MAX_S = 10.0;                   // silent audio-only recordings shorter than this are left out
   const SKIP_DIRS = new Set(["adobe premiere pro auto-save", "adobe premiere pro video previews",
     "adobe premiere pro audio previews", CACHE_DIR]);
   const PROXY_SUFFIXES = ["_proxy", " proxy", "-proxy"];
@@ -920,7 +921,7 @@
   const hm = (t) => { const d = new Date(t * 1000); return pad2(d.getHours()) + ":" + pad2(d.getMinutes()); };
   const pyList = (a) => "[" + a.join(", ") + "]";
 
-  function reportText({ version, name, seqFps, nv, na, clips, laneInfo, conflicts, skipped, edges, clock, devices, stems, relPath }) {
+  function reportText({ version, name, seqFps, nv, na, clips, laneInfo, conflicts, skipped, edges, clock, devices, stems, leftOut, relPath }) {
     const counts = {};
     for (const c of clips) counts[c.status] = (counts[c.status] || 0) + 1;
     const R = [`SlingSync ${version} report - ${name}`, `Sequence: ${pyFixed(seqFps, 3)} fps, ${nv} video tracks, ${na} audio tracks`, ""];
@@ -1011,6 +1012,11 @@
     }
     if (!anySilent) R.push("  none");
     if (skipped.length) { R.push(""); R.push("Unreadable files (skipped):"); for (const p of skipped) R.push(`  ${relPath(p)}`); }
+    if (leftOut && leftOut.length) {
+      R.push("");
+      R.push(`Left out of the timeline (silent recordings under ${pyFixed(EMPTY_MAX_S, 0)} s, no video):`);
+      for (const c of leftOut) R.push(`  ${c.rel}  (${pyFixed(c.duration, 1)} s)`);
+    }
     R.push("");
     R.push("All clips:");
     for (const c of [...clips].sort((a, b) => (a.dev - b.dev) || (a.start - b.start))) R.push(`  ${tc(c.start)}  ${c.status.padEnd(24)} ${c.rel}`);
@@ -1047,7 +1053,7 @@
   const isMedia = (fn) => !fn.startsWith(".") && (VIDEO_EXT.has(ext(fn)) || AUDIO_EXT.has(ext(fn)));
   const skipDir = (d) => d.startsWith(".") || SKIP_DIRS.has(d.toLowerCase());
 
-  const api = { SR, FRAME_S, CACHE_DIR, VIDEO_EXT, AUDIO_EXT, Cancelled, pyRound, pyFixed, percentile, median,
+  const api = { SR, FRAME_S, CACHE_DIR, EMPTY_MAX_S, VIDEO_EXT, AUDIO_EXT, Cancelled, pyRound, pyFixed, percentile, median,
     parseIso, dateCandidates, parseTc, resolveDates, probeFromInfo, fft, fingerprint, matchAll, refine,
     place, buildXml, compactClips, rateXml, tc, reportText, proxyBase, looseDevice, deviceEntry, isAudioExport, isMedia, skipDir,
     basename, ext, pyQuote, utf8Decode };

@@ -1,0 +1,46 @@
+name: Tests
+
+# On every push and pull request: sync the synthetic test projects with the desktop app's
+# engine (Python) and the Premiere Pro plug-in's engine (JavaScript + FFmpeg WebAssembly),
+# and fail if their XML differs or a clip isn't where it should be.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  engines-match:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install the engine's dependencies (no GUI)
+        run: python -m pip install "numpy>=1.24" "scipy>=1.10" "av>=12.0"
+      - name: Command line runs
+        run: python -m slingsync --version
+      - name: Plain project (known positions)
+        run: |
+          python scripts/make_test_project.py /tmp/p1
+          python premiere-plugin/tests/compare_sync.py /tmp/p1 /tmp/out1 \
+            "--expect=Rec/R1.m4a=0,CamA/A1.m4a=50,CamB/B1.m4a=100,Rec/R2.m4a=250,CamA/A2.m4a=300,CamB/B2.m4a=320,CamA/A3.m4a=520"
+      - name: Camera B clock one hour off
+        run: |
+          python scripts/make_test_project.py --camb-clock-off 3600 /tmp/p2
+          python premiere-plugin/tests/compare_sync.py /tmp/p2 /tmp/out2
+      - name: Proxies
+        run: |
+          python scripts/make_test_project.py --proxies /tmp/p3
+          python premiere-plugin/tests/compare_sync.py /tmp/p3 /tmp/out3
+      - name: Tiny silent recording is left out
+        run: |
+          python scripts/make_test_project.py /tmp/p4
+          python -c "import wave; w = wave.open('/tmp/p4/Rec/R9.wav', 'wb'); w.setnchannels(1); w.setsampwidth(2); w.setframerate(48000); w.writeframes(bytes(192000)); w.close()"
+          python premiere-plugin/tests/compare_sync.py /tmp/p4 /tmp/out4
+          grep -q "Rec/R9.wav" /tmp/out4/py_report.txt
+          ! grep -q "R9.wav" /tmp/out4/py.xml
