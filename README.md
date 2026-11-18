@@ -7,7 +7,7 @@ SlingSync comes in two forms:
 | | |
 |---|---|
 | **Desktop app** (Mac) | Released. Works with any editor that imports FCP7 XML, or with no video at all (audio-only export). [Download](../../releases) |
-| **Premiere Pro panel** (Premiere 2027+) | In development. Syncs inside Premiere and puts the sequence straight into your project. [About the panel](premiere-panel/README.md) |
+| **Premiere Pro panel** (Premiere 2027+) | Working prototype, not packaged yet. Syncs inside Premiere on its own and puts the sequence straight into your project; also compacts any open sequence. [About the panel](premiere-panel/README.md) |
 
 They do the same job and aim for identical results, but are built differently: Premiere plugins can only run JavaScript, so the panel carries its own JavaScript version of the engine. See [Desktop app and Premiere panel](docs/desktop-app-and-premiere-panel.md) for how they relate and which to use. The rest of this page is about the **desktop app**.
 
@@ -21,7 +21,8 @@ Tested on real documentary footage and checked in Premiere Pro. See the [testing
 
 - ✅ A 79-minute interview: 2 cameras plus a 5-channel recorder, loose files, proxies.
 - ✅ A full-day site visit: 131 clips from 5 devices (2 cameras, recorder, GoPro, drone). The camera timecode was changed mid-day.
-- ⏳ Not yet tested: the packaged app on other Macs, original camera files on a large shoot, mixed frame rates, NAS drives, Intel Macs.
+- ✅ Premiere panel: synced shoots inside Premiere Pro 2027 with no app, results identical to the app; Compact Timeline on a 181-clip day.
+- ⏳ Not yet tested: the packaged app on other Macs, mixed frame rates, NAS drives, Intel Macs.
 
 The current release is **v1.1.0**. What's new is in the [changelog](CHANGELOG.md).
 
@@ -70,13 +71,14 @@ Anything that couldn't be synced by sound is marked orange (placed by its device
 - **False matches.** A weak sound match that contradicts what the device clocks say is dropped.
 - **Clock drift.** Long takes are lined up at the middle, and any drift between devices is measured and reported.
 - **Audio only.** Tick **Also export audio files** and SlingSync also writes one aligned WAV per microphone. Drop them at the start of any audio editor (Audacity, Reaper, Logic, Descript…) and they're in sync. No Premiere or video needed, which suits podcasts, music and interviews.
+- **Compact timeline.** Tick **Also make a compact timeline** for a second XML with every stretch where nothing was recording cut out: the whole day as one continuous block, still in sync, for reviewers or a single transcript. (A 5-hour day with 1.5 hours of recordings becomes a 1.5-hour sequence.)
 - **Re-runs.** Audio analysis is saved in a hidden `.slingsync_cache` folder inside the project, so changing options and syncing again is fast. Delete that folder when you're done with the project.
 
 **Sync using** (per device) lets you force syncing to a single channel, such as the ambient mic. The default, which mixes all live channels, is usually the most reliable.
 
-## Premiere Pro panel (in development)
+## Premiere Pro panel (working prototype)
 
-A SlingSync panel for **Premiere Pro 2027** is being built in [`premiere-panel/`](premiere-panel/README.md). It will sync without leaving Premiere and without the desktop app. Read [Desktop app and Premiere panel](docs/desktop-app-and-premiere-panel.md) for the differences.
+A SlingSync panel for **Premiere Pro 2027** lives in [`premiere-panel/`](premiere-panel/README.md). It syncs a shoot folder **inside Premiere, without the desktop app**, using a JavaScript copy of the same engine (results are byte-identical to the app's), and adds the synced sequence to your project. It can also export the aligned audio files and **compact any open sequence**. It isn't packaged for normal installation yet: for now it loads through Adobe's UXP Developer Tool. Read [Desktop app and Premiere panel](docs/desktop-app-and-premiere-panel.md) for the differences.
 
 ## Command line
 

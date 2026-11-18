@@ -8,7 +8,7 @@ SlingSync comes in two forms. They do the same job (line up cameras and recorder
 | Who it's for | Anyone: Premiere editors, other NLEs that read FCP7 XML, podcasters and audio editors (audio-only export) | Premiere Pro 2027+ editors who want to sync without leaving Premiere |
 | Needs Premiere? | No | Yes, Premiere Pro 2027 (27.0) or later |
 | Result | `…_synced.xml` you import, a report, optional aligned WAVs | The synced sequence appears directly in the open project |
-| Status | **Released** (v1.1.0), tested on real shoots | **In development** (prototype 0.4) |
+| Status | **Released** (v1.1.0), tested on real shoots | **Working prototype** (0.10): syncs inside Premiere on its own, not packaged yet |
 | Code | [`slingsync/`](../slingsync) (Python) | [`premiere-panel/`](../premiere-panel) (JavaScript + WebAssembly) |
 | Download | [Releases](https://github.com/dyanez-arch/slingsync/releases) page (`.dmg`) | Not packaged yet; developers can load it with Adobe's UXP Developer Tool |
 
@@ -18,20 +18,34 @@ SlingSync comes in two forms. They do the same job (line up cameras and recorder
 
 **Premiere panels can't run that app's code.** Premiere 2027 plugins use Adobe's UXP system, which only runs **JavaScript** (plus WebAssembly) inside Premiere. Panels can also include native compiled code, but on macOS that has to be signed and notarised with a paid Apple Developer ID ($99/year). To keep SlingSync free, the panel doesn't use native code. Instead:
 
-- The sync engine (silence detection, fingerprints, matching, placement, XML) is being **rewritten in JavaScript**. Each piece is checked against the Python engine on the same real shoots, so both give the same results.
+- The sync engine (silence detection, fingerprints, matching, placement, XML, report, audio files) has been **rewritten in JavaScript** ([`premiere-panel/engine/`](../premiere-panel/engine)). It's checked against the Python engine on the same real shoots: the XML files come out byte-for-byte identical.
 - File reading uses **the same FFmpeg version as the app (7.1.1)**, audio parts only, compiled to WebAssembly ([`premiere-panel/wasm/`](../premiere-panel/wasm/README.md)). The panel opens the same formats as the app and reads the same timecode and dates.
 
 ## How they relate
 
 - **One engine design, two implementations.** The Python engine in `slingsync/engine.py` is the reference. The JavaScript engine in the panel is a port of it. When the sync logic changes, both are updated, and the panel is re-checked against the app.
 - **Same output.** Both write the same FCP7 XML, `SlingSync_report.txt` and aligned WAVs into the shoot folder. A folder synced by either can be imported with either.
-- **Independent.** Once the JavaScript engine is finished, the panel won't need the app installed, and the app will never need Premiere.
+- **Independent.** The panel doesn't need the app installed, and the app never needs Premiere.
+- **Shared analysis folder.** Both keep their saved analysis in the shoot's hidden `.slingsync_cache` folder, with separate file names, so they never get in each other's way.
 
-### Today (panel prototype 0.4)
+### What each one can do
 
-The JavaScript engine isn't finished yet. Until it is, the panel's **Sync Shoot Folder…** button asks the installed desktop app (1.2.0b2 or later) to do the sync, then imports the result. That bridge goes away when the panel engine is ready. See the [panel README](../premiere-panel/README.md) for the step-by-step status.
+| | Desktop app | Premiere panel |
+|---|---|---|
+| Sync a shoot folder by sound → XML + report | ✅ | ✅ and imports the sequence into the open project |
+| Export aligned audio files (WAV per microphone) | ✅ | ✅ |
+| Compact timeline (cut out every stretch where nothing records) | ✅ as a second XML (`…_compact.xml`) | ✅ on **any open sequence**: makes a "(compact)" copy |
+| Import a folder that was synced before | (File → Import in Premiere) | ✅ *Import a synced folder* |
+| Per-device "Sync using" channel, frame-rate choice, silent-channel options | ✅ | Not yet (uses the recommended defaults) |
+| Analyses several files at once | ✅ (faster on fast drives) | One at a time |
+
+### Checked so far (see the [testing log](testing.md))
+
+- Kishorn (111 clips, 5 devices, proxies), Mark Borthwick (loose files, 2 cameras + recorder), synthetic project: XML **byte-identical** to the app's, reports identical apart from the version line.
+- The panel synced Kishorn and Borthwick inside Premiere Pro 2027, and compacted Devon Night 2 (181 clips, 135 → 60 min).
+- Decoding: identical to the app on 21 files covering MXF, MP4/MOV, WAV, AIFF, MP3, AAC/M4A, FLAC, Opus, AC-3.
 
 ## Which should I use?
 
-- **Edit in Premiere Pro 2027 or later?** Once the panel is released, use the panel. Until then, use the desktop app.
+- **Edit in Premiere Pro 2027 or later?** The panel, once it's packaged for normal installation (today it needs Adobe's UXP Developer Tool). Until then, the desktop app.
 - **Older Premiere, another editor, or audio only?** Use the desktop app.

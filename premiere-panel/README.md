@@ -1,59 +1,69 @@
-# SlingSync panel for Premiere Pro 2027 (in development)
+# SlingSync panel for Premiere Pro 2027 (working prototype)
 
-A panel inside Premiere Pro that syncs a shoot by sound and puts the synced sequence straight into the open project. It's the Premiere-native counterpart of the [SlingSync desktop app](../README.md). For how the two relate and why they're built differently, see [Desktop app and Premiere panel](../docs/desktop-app-and-premiere-panel.md).
+A panel inside Premiere Pro that syncs a shoot by sound and puts the synced sequence straight into the open project, **with no other app needed**. It's the Premiere-native counterpart of the [SlingSync desktop app](../README.md); for how the two relate and why they're built differently, see [Desktop app and Premiere panel](../docs/desktop-app-and-premiere-panel.md).
 
-Requires **Premiere Pro 2027 (27.0) or later** (Adobe's UXP plugin system).
+Requires **Premiere Pro 2027 (27.0) or later** (Adobe's UXP plugin system). Not packaged yet: it loads through Adobe's UXP Developer Tool (below).
+
+## What it does
+
+- **Sync a Shoot…**: pick a shoot folder (one subfolder per camera or recorder, or loose files). The panel analyses the sound, lines everything up, writes `…_synced.xml` and `SlingSync_report.txt` into the folder (same files as the desktop app) and imports the sequence. Optional: **Also export audio files** (one aligned WAV per microphone).
+- **Compact Timeline**: makes a copy of the **open sequence** ("… (compact)") with every stretch where no track has a clip cut out, so the day plays as one block for review or a transcript. Clips that overlap stay in sync; the original sequence is untouched.
+- **Import a synced folder**: imports the sequence of a folder synced earlier (by the panel or the app).
+- **Show details** after a sync: every file, match and placement (**Copy details** to paste it into a bug report).
+- **About**: version, creator, GitHub, Ko-fi.
 
 ## Status
 
-| Step | What it does | Status |
-|---|---|---|
-| 1 | Import a SlingSync XML (pick a shoot folder or the XML) and check the sequence really appeared | Panel loads in Premiere 2027 ✅; import itself not yet tested |
-| 2 | **Sync Shoot Folder…** through the desktop app (temporary bridge, see below) | Built (panel 0.2+, app 1.2.0b2); not yet tested in Premiere |
-| 3 | **Panel engine:** syncing inside Premiere with no app needed | ✅ Works in Premiere 2027 (Kishorn, 2026-11-18); identical results to the app. Audio-file export not ported yet |
-| 4 | Sync from Premiere bins instead of folders | Planned |
-| — | **About** (version, creator, GitHub, report a problem) | Added in 0.4, not yet tested in Premiere |
-| — | **Compact Timeline**: a copy of the open sequence with every gap where nothing records closed | ✅ Works in Premiere 2027 (Devon Night 2: 181 clips, 135 → 60 min, 2026-11-18) |
-
-### Panel engine (step 3)
-
-The panel will run its own copy of the sync engine: the Python engine rewritten in JavaScript, with FFmpeg compiled to WebAssembly for reading files ([`wasm/`](wasm/README.md)). Feasibility tests run in Premiere Pro 2027 on 2026-11-18 (the **Developer tests** section of the panel):
-
-| Test | Result |
+| Feature | Status |
 |---|---|
-| Read a recorder WAV directly | ✅ 3.8 h of audio (2 GB) in 17.5 s |
-| Convert a clip with Media Encoder | ✅ works but slow (3 min clip in 79 s): only a last-resort fallback |
-| JavaScript speed (spectrogram) | ✅ about 5 s per hour of audio |
-| Built-in audio decoder (Web Audio) | ❌ not available in UXP |
-| WebAssembly | ✅ works (synchronous loading; asynchronous loading hung) |
+| Sync inside Premiere, own engine | ✅ Works in Premiere 2027 (Kishorn, Borthwick, 2026-11-18). Results byte-identical to the desktop app |
+| Compact Timeline | ✅ Works in Premiere 2027 (Devon Night 2: 181 clips, 135 → 60 min) |
+| Audio-file export | Matches the app (tested in Node); not yet tested inside Premiere |
+| Import a synced folder | Built; not yet tested in Premiere |
+| Per-device "Sync using" channel, frame rate, silent-channel options | Not in the panel yet (uses the recommended defaults) |
+| Sync from Premiere bins instead of folders | Planned |
+| Packaging for normal installation (`.ccx`, Creative Cloud) | Planned |
 
-Next: wire the decoder into the panel, port the analysis, matching, placement and XML, and check results against the desktop app on real shoots.
+Full results: [testing log](../docs/testing.md).
 
 ## Try it (development install)
 
 1. Install **Adobe UXP Developer Tool** from the Creative Cloud app (*Apps → search "UXP Developer Tool"*).
 2. In Premiere: **Settings → Plugins → Enable developer mode**, then restart Premiere and open a project.
-3. In UXP Developer Tool: **Add Plugin** → choose `premiere-panel/manifest.json` from this repository → in its row, click **⋯ → Load**. After changes, use **⋯ → Reload**.
+3. In UXP Developer Tool: **Add Plugin** → choose `premiere-panel/manifest.json` from this repository → in its row, **⋯ → Load**. After an update, **⋯ → Reload** (or Unload + Load if the plugin's permissions changed).
 4. In Premiere: **Window → UXP Plugins → SlingSync**.
-5. Until the panel engine is ready, **Sync Shoot Folder…** needs the SlingSync desktop app **1.2.0b2 or later** in Applications. The first time, macOS asks whether Premiere may open SlingSync: allow it. For a folder already synced, use **Import from Shoot Folder…**.
 
 If UXP Developer Tool says *"No applications are connected to the service"*, developer mode isn't on yet (step 2), or Premiere isn't open.
 
-## Files
+## How it's built
 
-- `manifest.json`: plugin id, version, Premiere 27.0+, permissions (read files, open `slingsync://` and web links).
-- `index.html`, `index.js`: the panel. Uses `premierepro` (`Project.getActiveProject`, `importFiles`, `getSequences`), `uxp.storage.localFileSystem`, `uxp.shell`.
-- `lab.js`: temporary feasibility tests; removed once the panel engine works.
-- `wasm/`: FFmpeg audio decoder for the panel engine.
-- `icons/`: generated from `slingsync/resources/icon.png`.
+| Path | |
+|---|---|
+| `manifest.json` | Plugin id, version, Premiere 27.0+, permissions (full file access, clipboard, opening web links) |
+| `index.html`, `index.js` | The panel: buttons, progress, import, Compact Timeline, About |
+| `engine/core.js` | The sync logic, a JavaScript port of `slingsync/engine.py`: dates, fingerprints, matching, refinement, placement, XML, report, compact timeline |
+| `engine/run.js` | A whole sync step by step (scan, probe, analyse, match, place, write files, audio export); file access goes through a `platform` object |
+| `engine/uxp_platform.js` | `platform` inside Premiere (UXP `fs`) |
+| `engine/media.js` | Bridge to the decoder |
+| `wasm/` | FFmpeg 7.1.1 (audio only) compiled to WebAssembly: reads every format the app reads ([details and license](wasm/README.md)) |
+| `tests/` | Node test harness: `compare_decode.py`, `compare_sync.py` (panel engine vs desktop app on a real shoot), `run_sync.js`, `node_platform.js` |
+| `lab.js` | Developer tests used to check feasibility (About → Developer tests) |
 
-## The temporary bridge to the desktop app
+### Things Premiere's plugin system needs (learned the hard way)
 
-UXP panels can't run programs, but they can open a link with the user's permission. So for now:
+- **WebAssembly** must be loaded synchronously (`new WebAssembly.Module/Instance`); `WebAssembly.instantiate` never finishes.
+- No `TextEncoder`/`TextDecoder`: the engine has its own UTF-8 helpers.
+- **Editing a sequence** (Compact Timeline): actions must be created inside `project.lockedAccess(() => project.executeTransaction(…))`, and every script object (project, sequence, track item) must be fetched again after each edit; otherwise Premiere says *"The script object is no longer valid"*.
+- `importFiles` may take long or report success before the import is done: the panel watches for the new sequence instead.
+- Clipboard: `navigator.clipboard.setContent({"text/plain": …})`.
 
-1. The desktop app registers the `slingsync://` link type (`CFBundleURLTypes` in `SlingSync.spec`).
-2. The panel opens `slingsync://sync?folder=<path>&id=<request id>&audio=0|1`. macOS launches the app, which syncs the folder with default options.
-3. The app writes `<folder>/.slingsync_status.json` as it goes: `{id, state: scanning|syncing|done|error|cancelled, progress, message, xml, report, stems, synced, files, check}`.
-4. The panel reads that file every 0.7 s, shows progress, and on `done` imports the XML and checks the sequence appeared. No answer within 60 s → it says to install the app.
+### Testing against the desktop app
 
-This bridge is removed when the panel engine is ready.
+```
+brew install node emscripten          # once
+bash scripts/build_panel_wasm.sh      # only if wasm/ssdec.c or the FFmpeg build changes
+.venv/bin/python premiere-panel/tests/compare_decode.py FILE...
+.venv/bin/python premiere-panel/tests/compare_sync.py SHOOT_FOLDER OUTPUT_FOLDER
+```
+
+`compare_sync.py` syncs the shoot with both engines (all output goes to OUTPUT_FOLDER; nothing is written to the shoot) and compares the XML, compact XML and every clip's position and status. **Keep `core.js`/`run.js` in step with `engine.py`**: when the sync logic changes, change both and rerun this.

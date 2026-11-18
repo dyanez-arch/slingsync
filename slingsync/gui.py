@@ -465,7 +465,8 @@ class MainWindow(QMainWindow):
         name.setTextInteractionFlags(Qt.TextSelectableByMouse)
         name.setAlignment(Qt.AlignCenter)
         body = QLabel(
-            "Free multicam sync for Premiere Pro, by sound.<br><br>"
+            "Free multicam sync for Premiere Pro, by sound.<br>"
+            "Also as a panel inside Premiere Pro 2027 (in development).<br><br>"
             f'Made by <a href="{CREATOR_URL}">Daniel Yanez</a>, documentary editor.<br>'
             "Free and open source under the MIT License.<br>"
             f"{COPYRIGHT}<br><br>"
