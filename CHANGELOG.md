@@ -6,7 +6,7 @@ What was tested with each build is in the [testing log](docs/testing.md).
 
 ## 1.2.0 (2026-11-18)
 
-Everything in the 1.2.0b1 and 1.2.0b2 test builds below, plus the **Premiere Pro 2027 panel** as a `.ccx` next to the DMG.
+Everything in the 1.2.0b1 and 1.2.0b2 test builds below, plus the **Premiere Pro 2027 panel** as a `.ccx` next to the DMG. Built by GitHub Actions run [44359091126](https://github.com/dyanez-arch/slingsync/actions/runs/44359091126) from tag `v1.2.0`; [release page](https://github.com/dyanez-arch/slingsync/releases/tag/v1.2.0) with `SlingSync-1.2.0-macOS-AppleSilicon.dmg` and `SlingSync-panel-0.10.3.ccx`.
 
 **Highlights**
 - **Premiere Pro panel (Premiere 2027+):** syncs a shoot inside Premiere with no other app, using a JavaScript copy of the engine whose results are byte-identical to the app's, and adds the sequence to your project. Also **Compact Timeline** on any open sequence, audio-file export and import of a synced folder. Installs by double-clicking `SlingSync-panel-0.10.3.ccx`. Working prototype: tested on three shoots in Premiere 2027.
