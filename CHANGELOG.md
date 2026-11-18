@@ -6,7 +6,7 @@ What was tested with each build is in the [testing log](docs/testing.md).
 
 ## 1.2.1 (2026-11-18)
 
-Everything in 1.2.1b1 below, with the **Premiere Pro plug-in 0.13.2** (`SlingSync-PremierePro-plugin-0.13.2.ccx`) next to the DMG.
+Everything in 1.2.1b1 below, with the **Premiere Pro plug-in 0.13.2** (`SlingSync-PremierePro-plugin-0.13.2.ccx`) next to the DMG. Built by GitHub Actions run [44380187347](https://github.com/dyanez-arch/slingsync/actions/runs/44380187347) from tag `v1.2.1` (the first attempt was cancelled by GitHub after 15 minutes waiting for a build machine; rerun); [release page](https://github.com/dyanez-arch/slingsync/releases/tag/v1.2.1).
 
 **Highlights**
 - **Better results when one folder holds several recorders** (`Audio/Boom`, `Audio/Ed Lav`…): each becomes its own device. On a real shoot: 59 → 67 clips synced by sound, timeline 72 h → 24.5 h.
