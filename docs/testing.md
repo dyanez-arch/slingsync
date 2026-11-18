@@ -147,6 +147,7 @@ Generated with known offsets: 3 devices, steady ambience plus sparse events, a d
 - [x] Premiere Pro 2027 panel loads (Window → UXP Plugins) via UXP Developer Tool after enabling developer mode (panel 0.1)
 - [x] Panel sync inside Premiere with its own engine (Kishorn, Borthwick)
 - [x] Compact Timeline in Premiere (Devon Night 2)
+- [x] 1.2.0b2 DMG (run 44355109228) installs and shows version 1.2.0b2 (2026-11-18)
 - [ ] Panel audio-file export inside Premiere (UXP `fs.write`)
 - [ ] Panel *Import a synced folder* link
 - [ ] Panel on a large shoot of original camera files (Devon comparison running)
