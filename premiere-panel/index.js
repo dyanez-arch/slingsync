@@ -195,24 +195,28 @@ document.getElementById("syncFolder").addEventListener("click", () => guarded(as
 }));
 
 // ---- Compact Timeline: close every gap where no track has a clip, in a copy of the open sequence ----
-// Premiere invalidates its script objects (sequence, track items) after every edit, so
-// everything is fetched again after each transaction (by sequence id, track and position).
+// Premiere's script objects stop working after any edit, and objects from an older project
+// handle stop working once a new handle is fetched. So every step gets a fresh project
+// handle, looks up what it needs from that same handle, and uses it straight away.
 const TICKS = 254016000000;                    // Premiere ticks per second
 const ticksOf = (t) => Number(t.ticksNumber !== undefined ? t.ticksNumber : t.ticks);
+const activeProject = () => ppro.Project.getActiveProject();
 
-const activeProject = () => ppro.Project.getActiveProject();   // fresh handle every time
-// run one edit on a fresh project handle; `build(addAction)` adds the actions
-async function edit(build, undoName) {
-  const project = await activeProject();
-  return project.executeTransaction((ca) => build((a) => ca.addAction(a)), undoName);
+// One edit: lookup(P) gathers objects from project handle P (async); make(objects) returns
+// the actions, created inside the transaction from those objects.
+async function edit(lookup, make, undoName) {
+  const P = await activeProject();
+  const objs = await lookup(P);
+  let ok = false;
+  P.executeTransaction((ca) => { for (const a of make(objs)) ca.addAction(a); ok = true; }, undoName);
+  return ok;
 }
-async function sequenceById(guid) {
-  return (await (await activeProject()).getSequences()).find((q) => String(q.guid) === guid) || null;
+async function sequenceById(P, guid) {
+  return (await P.getSequences()).find((q) => String(q.guid) === guid) || null;
 }
-
 // All clips of a sequence: [{ key, it, start, end }], key = "v2:5" (video track 2, 5th clip)
-async function clipsOf(guid) {
-  const seq = await sequenceById(guid);
+async function clipsOf(P, guid) {
+  const seq = await sequenceById(P, guid);
   if (!seq) throw new Error("the copied sequence disappeared");
   const CLIP = (ppro.Constants && ppro.Constants.TrackItemType && ppro.Constants.TrackItemType.CLIP) || 1;
   const out = [];
@@ -228,19 +232,20 @@ async function clipsOf(guid) {
   }
   return out;
 }
+const readClips = async (guid) => clipsOf(await activeProject(), guid);
 
 async function compactActiveSequence(log) {
-  const project = await activeProject();
-  if (!project) { say("Open a Premiere project first.", "err"); return; }
-  const seq = await project.getActiveSequence();
-  if (!seq) { say("Open the sequence you want to compact first.", "err"); return; }
-  const name = seq.name;
+  const P0 = await activeProject();
+  if (!P0) { say("Open a Premiere project first.", "err"); return; }
+  const seq0 = await P0.getActiveSequence();
+  if (!seq0) { say("Open the sequence you want to compact first.", "err"); return; }
+  const name = seq0.name, srcGuid = String(seq0.guid);
+  const before = new Set((await P0.getSequences()).map((q) => String(q.guid)));
   say("Copying “" + name + "”…");
   showBar(0);
   // 1. copy the sequence, so the original stays as it is
-  const before = new Set((await project.getSequences()).map((q) => String(q.guid)));
   log("copy: cloning " + name);
-  await edit((add) => add(seq.createCloneAction()), "SlingSync: copy sequence");
+  await edit((P) => sequenceById(P, srcGuid), (sq) => [sq.createCloneAction()], "SlingSync: copy sequence");
   let guid = null;
   for (let k = 0; k < 20 && !guid; k++) {
     await sleep(150);
@@ -250,13 +255,13 @@ async function compactActiveSequence(log) {
   if (!guid) { showBar(null); say("Premiere didn't make a copy of the sequence, so nothing was changed.", "err"); return; }
   log("copy: made " + guid);
   try {
-    const pi = await (await sequenceById(guid)).getProjectItem();
-    await edit((add) => add(pi.createSetNameAction(name + " (compact)")), "SlingSync: name copy");
+    await edit(async (P) => (await sequenceById(P, guid)).getProjectItem(),
+      (pi) => [pi.createSetNameAction(name + " (compact)")], "SlingSync: name copy");
     log("copy: renamed");
   } catch (e) { log("copy: rename failed (" + e + "), keeping Premiere's name"); }
 
   // 2. plan: blocks = stretches where at least one clip plays; each block moves left
-  let clips = await clipsOf(guid);
+  let clips = await readClips(guid);
   log(`plan: ${clips.length} clips`);
   if (!clips.length) { showBar(null); say("The sequence is empty.", "err"); return; }
   const order = [...clips].sort((x, y) => x.start - y.start);
@@ -272,14 +277,15 @@ async function compactActiveSequence(log) {
   log(`plan: ${blocks} blocks, ${(fullLen / 60).toFixed(1)} min -> ${(newLen / 60).toFixed(1)} min`);
   const pendingOf = (cs) => cs.filter((x) => x.start !== target.get(x.key)).sort((x, y) => x.start - y.start);
   const moveAction = (x) => x.it.createMoveAction(ppro.TickTime.createWithTicks(String(target.get(x.key) - x.start)));
-  const move = (x) => edit((add) => add(moveAction(x)), "SlingSync: compact");
+  // move the first `n` pending clips (all if n is Infinity) in one edit
+  const movePending = (n) => edit((P) => clipsOf(P, guid), (cs) => pendingOf(cs).slice(0, n).map(moveAction), "SlingSync: compact");
 
   // 3. probe: move one clip, see whether its linked clips moved with it
   let pending = pendingOf(clips);
   if (pending.length) {
     const first = pending[0];
-    await move(first);
-    clips = await clipsOf(guid);
+    await movePending(1);
+    clips = await readClips(guid);
     const was = new Map(order.map((x) => [x.key, x.start]));
     const changed = clips.filter((x) => x.start !== was.get(x.key)).map((x) => x.key);
     const landed = clips.find((x) => x.key === first.key);
@@ -295,7 +301,7 @@ async function compactActiveSequence(log) {
     if (changed.length === 1) {
       // 4a. clips move on their own: everything else in one edit
       log(`moving ${pending.length} clips in one edit`);
-      await edit((add) => { for (const x of pending) add(moveAction(x)); }, "SlingSync: compact");
+      await movePending(Infinity);
     } else {
       // 4b. linked clips move together: one clip at a time, checking positions after each
       log("linked clips move together: moving one clip at a time");
@@ -303,18 +309,18 @@ async function compactActiveSequence(log) {
       while (pending.length && n < 5000) {
         n++;
         if (n % 5 === 0) { showBar(1 - pending.length / clips.length); say(`Compacting “${name}”… ${pending.length} clips to go`); }
-        await move(pending[0]);
-        clips = await clipsOf(guid);
+        await movePending(1);
+        clips = await readClips(guid);
         pending = pendingOf(clips);
       }
     }
   }
   // 5. check
-  clips = await clipsOf(guid);
+  clips = await readClips(guid);
   const wrong = pendingOf(clips);
   log(`check: ${wrong.length} clips not where planned` + (wrong.length ? ": " + wrong.slice(0, 10).map((x) => x.key).join(", ") : ""));
   showBar(null);
-  try { await (await activeProject()).openSequence(await sequenceById(guid)); } catch (e) { log("open failed: " + e); }
+  try { const P = await activeProject(); await P.openSequence(await sequenceById(P, guid)); } catch (e) { log("open failed: " + e); }
   const hms = (s) => { s = Math.round(s); return `${Math.floor(s / 3600)}:${String(Math.floor(s % 3600 / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`; };
   if (wrong.length) {
     say(`Compacted copy made, but ${wrong.length} of ${clips.length} clips didn't land where planned.\n` +
