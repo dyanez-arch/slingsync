@@ -122,11 +122,13 @@ Generated with known offsets: 3 devices, steady ambience plus sparse events, a d
 - [x] Audio-only WAV export, in the installed app (1.2.0b1)
 - [x] Cancel during a sync, in the installed app (1.1.0b1/b2: worked but took ~1 min to stop on long files; fixed in 1.1.0b3)
 - [ ] New Sync / Help in the installed app (tested offscreen only; About confirmed in 1.2.0b1)
-- [ ] Premiere Pro 2027 panel, step 1 (import)
+- [x] Premiere Pro 2027 panel loads (Window → UXP Plugins) via UXP Developer Tool after enabling developer mode (panel 0.1)
+- [ ] Panel import of a synced folder, and panel-started sync (panel 0.2 + app 1.2.0b2)
 - [ ] First launch on a second Mac, recording macOS's exact wording
 - [ ] Mixed frame rates in one project (23.976 / 25 / 29.97 / 50)
 - [ ] Variable-frame-rate phone footage
-- [ ] Paths with accented characters
+- [x] Paths with a space and an accented character (`t remote é`, synthetic, from-source app): sync, XML, audio files, status file
+- [ ] Paths with accented characters imported into Premiere
 - [ ] Cameras that stamp the *end* of a recording (logic exists, not seen in real media yet; all devices so far stamp the start)
 - [ ] Read-only drives and NAS shares (the cache is written inside the project folder)
 - [ ] Very long multi-hour recorder files and memory use on 8 GB Macs

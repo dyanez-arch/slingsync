@@ -33,5 +33,8 @@ app = BUNDLE(
         "NSHighResolutionCapable": True,
         "LSMinimumSystemVersion": "12.0",
         "NSRequiresAquaSystemAppearance": False,
+        # slingsync:// links let the Premiere panel ask the app to sync a folder
+        "CFBundleURLTypes": [{"CFBundleURLName": "io.github.slingsync",
+                              "CFBundleURLSchemes": ["slingsync"]}],
     },
 )

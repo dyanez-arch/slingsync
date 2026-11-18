@@ -4,6 +4,11 @@ Every build that reaches anyone gets its own version number and section here. Te
 
 What was tested with each build is in the [testing log](docs/testing.md).
 
+## 1.2.0b2 (next test build)
+
+### Added
+- **Premiere panel step 2 (panel 0.2):** **Sync Shoot Folder…** in the panel opens the SlingSync app with that folder (via a `slingsync://` link that the app now registers). The app syncs it, reports progress to the panel through a small `.slingsync_status.json` file in the folder, and the panel imports the synced sequence. Option to also export audio files. Tested with the app driven offscreen, including a folder name with a space and an accent; not yet tested in Premiere.
+
 ## 1.2.0b1 (test build, 2026-11-17)
 
 Built by GitHub Actions run [44219903752](https://github.com/dyanez-arch/slingsync/actions/runs/44219903752) from commit `0e4f9b3`.

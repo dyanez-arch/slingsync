@@ -10,11 +10,15 @@
     h1 { font-size: 16px; margin: 0; }
     .muted { color: #9a9a9a; }
     button { display: block; width: 100%; margin: 8px 0; padding: 8px; font-size: 12px; }
-    #status { margin-top: 12px; padding: 10px; border-radius: 6px; background: rgba(255,255,255,0.06);
+    #syncFolder { font-weight: bold; padding: 11px; }
+    label { display: flex; align-items: center; gap: 6px; margin: 4px 0 10px; }
+    #bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.12); margin-top: 12px; }
+    #barFill { height: 6px; border-radius: 3px; background: #3b9cff; width: 0%; }
+    #status { margin-top: 10px; padding: 10px; border-radius: 6px; background: rgba(255,255,255,0.06);
               white-space: pre-wrap; min-height: 18px; }
     #status.ok { border-left: 3px solid #3fb950; }
     #status.err { border-left: 3px solid #e5534b; }
-    footer { margin-top: 14px; font-size: 11px; }
+    hr { border: none; border-top: 1px solid rgba(255,255,255,0.12); margin: 14px 0 6px; }
   </style>
 </head>
 <body>
@@ -22,18 +26,22 @@
     <img src="icons/logo.png" alt="">
     <div>
       <h1>SlingSync</h1>
-      <div class="muted">Panel prototype 0.1 · step 1: import</div>
+      <div class="muted">Panel prototype 0.2</div>
     </div>
   </header>
 
-  <p class="muted">Sync a shoot with the SlingSync app first, then import the result into this project.</p>
+  <button id="syncFolder">Sync Shoot Folder…</button>
+  <label><input type="checkbox" id="audio"> Also export audio files (WAV)</label>
+  <div class="muted">Pick a shoot folder (one subfolder per camera or recorder). The SlingSync
+    app syncs it, then the synced sequence is imported into this project.</div>
 
-  <button id="fromFolder">Import from Shoot Folder…</button>
-  <button id="fromFile">Import XML File…</button>
-
+  <div id="bar"><div id="barFill"></div></div>
   <div id="status"></div>
 
-  <footer class="muted">Coming next: start the sync from here.</footer>
+  <hr>
+  <div class="muted">Already synced?</div>
+  <button id="fromFolder">Import from Shoot Folder…</button>
+  <button id="fromFile">Import XML File…</button>
 
   <script src="index.js"></script>
 </body>
