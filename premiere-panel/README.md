@@ -13,7 +13,7 @@ Requires **Premiere Pro 2027 (27.0) or later** (Adobe's UXP plugin system).
 | 3 | **Panel engine:** syncing inside Premiere with no app needed | ✅ Works in Premiere 2027 (Kishorn, 2026-11-18); identical results to the app. Audio-file export not ported yet |
 | 4 | Sync from Premiere bins instead of folders | Planned |
 | — | **About** (version, creator, GitHub, report a problem) | Added in 0.4, not yet tested in Premiere |
-| — | **Compact Timeline…**: the day as one block, no empty stretches | Added in 0.8; engine checked against the app; not yet tested in Premiere |
+| — | **Compact Timeline**: a copy of the open sequence with every gap where nothing records closed | ✅ Works in Premiere 2027 (Devon Night 2: 181 clips, 135 → 60 min, 2026-11-18) |
 
 ### Panel engine (step 3)
 
