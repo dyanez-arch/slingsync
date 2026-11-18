@@ -136,6 +136,28 @@
     }
   });
 
+  // ---- Test 5: is WebAssembly usable (would let us run FFmpeg's audio decoders in the panel)? ----
+  btn("labWasm", async () => {
+    log("Loading a tiny WebAssembly module…");
+    await sleep(50);
+    const bytes = new Uint8Array([0,0x61,0x73,0x6d,1,0,0,0, 1,7,1,0x60,2,0x7f,0x7f,1,0x7f, 3,2,1,0, 5,3,1,0,1,
+      7,13,2,3,0x61,0x64,0x64,0,0, 3,0x6d,0x65,0x6d,2,0, 10,9,1,7,0,0x20,0,0x20,1,0x6a,0x0b]);
+    const { instance } = await WebAssembly.instantiate(bytes);
+    const { add, mem } = instance.exports;
+    log("Loaded. Calling it 10 million times…");
+    await sleep(50);
+    let t = now(), s = 0;
+    for (let i = 0; i < 1e7; i++) s = add(s, 1);
+    log(`  result ${s} (should be 10000000) in ${now() - t} ms`);
+    log("Growing its memory to 500 MB…");
+    await sleep(50);
+    t = now();
+    mem.grow(8000);
+    new Uint8Array(mem.buffer).fill(7);
+    log(`  ${(mem.buffer.byteLength / 1e6).toFixed(0)} MB in ${now() - t} ms`);
+    log("\nWebAssembly works ✅");
+  });
+
   // ---- Test 3: JavaScript speed for the sync maths (FFT spectrogram) ----
   btn("labDsp", async () => {
     log("Test 3 started…");
