@@ -24,6 +24,7 @@ Built by GitHub Actions run [44377084732](https://github.com/dyanez-arch/slingsy
 - 0.11.0: the developer tests are out of the plug-in (kept in `premiere-plugin/tests/lab_feasibility.js`). About shows only what users need.
 - 0.12.0: grouped device folders are split, like the app (see Improved).
 - 0.13.0: **settings like the desktop app.** *Sync a Shoot…* now shows the devices found (files, channels, proxies) with a **Sync using** choice per device, and an **Options** section: frame rate, leave out channels silent in every file / in individual clips, re-analyse everything (clears the plug-in's own saved analysis), also export audio files. Leaving everything as it is gives the recommended defaults. Tested against a fake Premiere: channel choice, frame rate (30 fps sequence) and audio export reach the engine; not yet tested inside Premiere.
+- 0.13.1: errors are never silent (message + details). 0.13.2: menus are Spectrum pickers (`sp-picker`): Premiere's plug-in system showed `<select>` menus blank and ignored the choice; **All live channels (recommended)** is now preselected on every device. 0.13.1 sync confirmed working in Premiere (2026-11-18).
 
 ### Repository
 - Issue templates: *Report a problem* asks for the tool, version, Mac, the shoot, `SlingSync_report.txt` and the details log; *Suggest a feature*; links to the guides and Ko-fi.

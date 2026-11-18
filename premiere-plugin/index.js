@@ -203,19 +203,6 @@ async function guarded(fn) {
   }
 }
 
-// The chosen value of a <select>; Premiere's menus don't always report .value like a browser
-function selected(id, fallback) {
-  const sel = document.getElementById(id);
-  if (!sel) return fallback;
-  let v = sel.value;
-  if ((v === undefined || v === null || v === "") && sel.options && sel.selectedIndex >= 0) {
-    const o = sel.options[sel.selectedIndex];
-    v = o ? (o.value !== undefined && o.value !== "" ? o.value : o.getAttribute && o.getAttribute("value")) : undefined;
-  }
-  const n = Number(v);
-  return Number.isFinite(n) ? n : fallback;
-}
-
 // ---- Sync a Shoot: 1. pick folder → show devices and settings, 2. Sync ----
 // Same choices as the desktop app (gui.FPS_CHOICES, AUTO_CH, the option checkboxes).
 const FPS_CHOICES = [["Match first camera", null], ["23.976", 24000 / 1001], ["24", 24], ["25", 25],
@@ -223,15 +210,38 @@ const FPS_CHOICES = [["Match first camera", null], ["23.976", 24000 / 1001], ["2
 const AUTO_CH = "All live channels (recommended)";
 let pending = null;                           // { path, name, devs } waiting for Sync
 
-(function fillFps() {
-  const sel = document.getElementById("fps");
-  FPS_CHOICES.forEach(([label], i) => {
-    const o = document.createElement("option");
-    o.value = String(i); o.setAttribute("value", String(i)); o.textContent = label;
-    if (i === 0) o.setAttribute("selected", "");
-    sel.appendChild(o);
+// Menus: Premiere's plug-in system doesn't support <select> properly (blank, ignores the
+// choice), so menus are Spectrum pickers. Each choice is remembered when it's made (change
+// event); picker.selectedIndex is the fallback. Item 0 is preselected.
+const choice = {};                            // picker id -> chosen item index
+function makePicker(id, labels, title) {
+  const picker = document.createElement("sp-picker");
+  picker.setAttribute("size", "s");
+  picker.id = id;
+  if (title) picker.setAttribute("title", title);
+  const menu = document.createElement("sp-menu");
+  menu.setAttribute("slot", "options");
+  labels.forEach((label, i) => {
+    const item = document.createElement("sp-menu-item");
+    item.textContent = label;
+    if (i === 0) item.setAttribute("selected", "");
+    menu.appendChild(item);
   });
-})();
+  picker.appendChild(menu);
+  choice[id] = 0;
+  picker.addEventListener("change", (ev) => {
+    const i = (ev && ev.target && typeof ev.target.selectedIndex === "number") ? ev.target.selectedIndex : picker.selectedIndex;
+    if (typeof i === "number" && i >= 0) choice[id] = i;
+  });
+  return picker;
+}
+function chosen(id) {
+  const picker = document.getElementById(id);
+  const i = picker && typeof picker.selectedIndex === "number" && picker.selectedIndex >= 0 ? picker.selectedIndex : choice[id];
+  return typeof i === "number" && i >= 0 ? i : 0;
+}
+
+document.getElementById("fpsBox").appendChild(makePicker("fps", FPS_CHOICES.map(([label]) => label)));
 
 function showSetup(show) {
   document.getElementById("setup").hidden = !show;
@@ -252,16 +262,9 @@ function renderDevices(devs) {
       (d.proxies_used ? ` · ${d.proxies_used} proxies` : "") +
       (d.skipped_proxies ? ` · ${d.skipped_proxies} proxies skipped` : "");
     name.appendChild(document.createElement("br")); name.appendChild(count);
-    const sel = document.createElement("select"); sel.id = "ch" + k;
-    const add = (v, t) => {
-      const o = document.createElement("option");
-      o.value = v; o.setAttribute("value", v); o.textContent = t;
-      if (v === "0") o.setAttribute("selected", "");
-      sel.appendChild(o);
-    };
-    add("0", d.channels ? AUTO_CH : "No audio");
-    for (let ch = 1; ch <= d.channels; ch++) add(String(ch), `Only channel ${ch}`);
-    sel.title = "Which audio to sync this device with. All live channels is usually the most reliable.";
+    const labels = [d.channels ? AUTO_CH : "No audio"];
+    for (let ch = 1; ch <= d.channels; ch++) labels.push(`Only channel ${ch}`);
+    const sel = makePicker("ch" + k, labels, "Which audio to sync this device with. All live channels is usually the most reliable.");
     row.appendChild(name); row.appendChild(sel);
     list.appendChild(row);
   });
@@ -269,8 +272,8 @@ function renderDevices(devs) {
 
 function readSettings(devs) {
   const refChannels = {};
-  devs.forEach((d, k) => { const v = selected("ch" + k, 0); if (v > 0 && v <= d.channels) refChannels[d.name] = v; });
-  const f = FPS_CHOICES[selected("fps", 0)] || FPS_CHOICES[0];
+  devs.forEach((d, k) => { const v = chosen("ch" + k); if (v > 0 && v <= d.channels) refChannels[d.name] = v; });
+  const f = FPS_CHOICES[chosen("fps")] || FPS_CHOICES[0];
   return {
     refChannels,
     fps: f[1],

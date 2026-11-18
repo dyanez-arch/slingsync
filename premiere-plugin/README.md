@@ -63,6 +63,7 @@ If UXP Developer Tool says *"No applications are connected to the service"*, dev
 - **Editing a sequence** (Compact Timeline): actions must be created inside `project.lockedAccess(() => project.executeTransaction(…))`, and every script object (project, sequence, track item) must be fetched again after each edit; otherwise Premiere says *"The script object is no longer valid"*.
 - `importFiles` may take long or report success before the import is done: the plug-in watches for the new sequence instead.
 - Clipboard: `navigator.clipboard.setContent({"text/plain": …})`.
+- Menus: use `sp-picker` (with `sp-menu slot="options"` and `sp-menu-item selected`), not `<select>`, which shows blank and ignores the choice.
 
 ### Testing against the desktop app
 

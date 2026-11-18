@@ -29,7 +29,7 @@
            border-bottom: 1px solid rgba(255,255,255,0.08); }
     .dev .name { flex: 1 1 auto; min-width: 0; }
     .dev .count { color: #9a9a9a; font-size: 11px; }
-    .dev select, .row select { flex: 0 0 auto; font-size: 11px; }
+    .dev sp-picker, .row sp-picker { flex: 0 0 auto; width: 170px; }
     .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 8px 0 2px; color: #9a9a9a; }
     #startSync { font-weight: bold; }
     #bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.12); margin-top: 12px; }
@@ -65,7 +65,7 @@
     <div id="devList"></div>
     <a href="#" id="optionsToggle" class="small">Options</a>
     <div id="options" hidden>
-      <div class="row small"><span>Frame rate</span><select id="fps"></select></div>
+      <div class="row small"><span>Frame rate</span><div id="fpsBox"></div></div>
       <label class="small"><input type="checkbox" id="dropDead" checked> Leave out channels that are
         silent in every file of a device</label>
       <label class="small"><input type="checkbox" id="dropEach"> Also leave out channels that are

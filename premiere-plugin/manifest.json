@@ -2,7 +2,7 @@
   "manifestVersion": 5,
   "id": "io.github.slingsync.panel",
   "name": "SlingSync",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "main": "index.html",
   "host": {
     "app": "premierepro",
