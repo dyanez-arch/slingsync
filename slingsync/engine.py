@@ -47,9 +47,15 @@ CACHE_DIR = ".slingsync_cache"
 
 
 def _parse_iso(s):
-    s = s.strip().replace("Z", "+00:00")
+    """Date string -> timestamp, read as wall-clock time (any time zone label dropped).
+
+    Recorder clocks and timecode carry no zone, and many cameras (DJI, GoPro, Sony)
+    write their local wall-clock time labelled as UTC. Comparing wall-clock to
+    wall-clock keeps every device in the same frame."""
+    s = s.strip()
     if " " in s and "T" not in s[:11]:
         s = s.replace(" ", "T", 1)
+    s = re.sub(r"(Z|[+-]\d{2}:?\d{2})$", "", s)
     try:
         return datetime.datetime.fromisoformat(s).timestamp()
     except Exception:
@@ -62,35 +68,112 @@ def _parse_iso(s):
     return None
 
 
-def _date_from_tags(tags, sr, path, duration):
+def _date_candidates(tags, sr, path, duration):
+    """Every date hint a file carries: recorder clock (BWF), container metadata, file date."""
     t = {k.lower(): str(v) for k, v in tags.items()}
+    out = {}
     # Broadcast WAV: recorder's own clock (works even without jammed timecode)
     od = t.get("origination_date")
     ot_tag = t.get("origination_time")
     ct = t.get("creation_time", "")
-    if not od and t.get("date") and (t.get("time_reference") or (len(ct) == 8 and ct[2] == ":")):
+    bwf_style = len(ct) == 8 and ct[2] == ":"
+    if not od and t.get("date") and (t.get("time_reference") or bwf_style):
         od, ot_tag = t["date"], ot_tag or ct   # how FFmpeg reports BWF bext fields
     if od:
         od = od.replace(":", "-")[:10]
         try:
             base = datetime.datetime.strptime(od, "%Y-%m-%d").timestamp()
             if t.get("time_reference") and sr:
-                return base + int(t["time_reference"]) / sr, "recorder clock"
-            ot = ot_tag
-            if ot:
-                h, m, s = [int(x) for x in ot.replace("-", ":").split(":")[:3]]
-                return base + h * 3600 + m * 60 + s, "recorder clock"
+                out["recorder"] = base + int(t["time_reference"]) / sr
+            elif ot_tag:
+                h, m, s = [int(x) for x in ot_tag.replace("-", ":").split(":")[:3]]
+                out["recorder"] = base + h * 3600 + m * 60 + s
         except Exception:
             pass
-    for k in ("com.apple.quicktime.creationdate", "creation_time", "date"):
-        if k in t:
-            v = _parse_iso(t[k])
-            if v:
-                return v, "file metadata"
+    if "recorder" not in out:
+        for k in ("com.apple.quicktime.creationdate", "creation_time", "date"):
+            if k in t:
+                v = _parse_iso(t[k])
+                if v:
+                    out["meta"] = v
+                    break
     st = os.stat(path)
-    if hasattr(st, "st_birthtime"):
-        return st.st_birthtime, "file date"
-    return st.st_mtime - duration, "file date"
+    out["file"] = st.st_birthtime if hasattr(st, "st_birthtime") else st.st_mtime - duration
+    return out
+
+
+def _parse_tc(s, fps):
+    """'HH:MM:SS:FF' (or ;/. separators) -> seconds since midnight, or None."""
+    if not s:
+        return None
+    parts = str(s).replace(";", ":").replace(".", ":").split(":")
+    try:
+        h, m, sec, f = (int(x) for x in parts[:4])
+    except ValueError:
+        return None
+    if not (0 <= h < 24 and 0 <= m < 60 and 0 <= sec < 60):
+        return None
+    return h * 3600 + m * 60 + sec + f / max(1.0, round(fps or 25))
+
+
+def _local_midnight(ts):
+    d = datetime.datetime.fromtimestamp(ts)
+    return datetime.datetime(d.year, d.month, d.day).timestamp()
+
+
+def resolve_dates(clips, n_devices):
+    """Pick each clip's best start-time estimate ('date') and say where it came from.
+
+    Order of preference: recorder clock (BWF) > camera timecode (time of day) >
+    container creation date > file date. Proxies: a creation date is trusted only if it
+    is clearly older than the proxy file itself (carried over from the original); the
+    proxy file's own date is never used. Timecode in 'record run' mode (clips numbered
+    back to back with no gaps) only gives the order, not the time, so it isn't used."""
+    for c in clips:
+        d = c["dates"]
+        meta = d.get("meta")
+        if c["proxy"] and meta is not None and meta > d["file"] - 86400:
+            meta = None                       # transcode date, not shoot date
+        c["_meta"] = meta
+    days = {}
+    for c in clips:
+        ref = c["dates"].get("recorder") or c["_meta"]
+        if ref:
+            k = _local_midnight(ref)
+            days[k] = days.get(k, 0) + 1
+    shoot_day = max(days, key=days.get) if days else _local_midnight(946728000)  # 2000-01-01
+    for dev in range(n_devices):
+        dc = sorted((c for c in clips if c["dev"] == dev and c.get("tc") is not None),
+                    key=lambda c: c["tc"])
+        rec_run = False
+        if len(dc) >= 3:
+            back_to_back = sum(1 for a, b in zip(dc, dc[1:])
+                               if abs(b["tc"] - (a["tc"] + a["duration"])) < 1.0)
+            if back_to_back >= 0.7 * (len(dc) - 1):
+                # Back-to-back timecode is either record-run (gaps hidden) or one long
+                # recording split into chapters (GoPro, 4 GB splits). Record-run only if
+                # the clips' own dates show gaps the timecode doesn't.
+                other = [c["_meta"] or (None if c["proxy"] else c["dates"]["file"]) for c in dc]
+                other = [x for x in other if x]
+                tc_span = dc[-1]["tc"] + dc[-1]["duration"] - dc[0]["tc"]
+                rec_run = len(other) >= 3 and (max(other) - min(other)) > 2 * tc_span + 60
+        for c in (c for c in clips if c["dev"] == dev):
+            d = c["dates"]
+            c["tc_mode"] = "record run" if rec_run and c.get("tc") is not None else None
+            if d.get("recorder"):
+                c["date"], c["date_src"] = d["recorder"], "recorder clock"
+            elif c.get("tc") is not None and not rec_run:
+                ref = c["_meta"] or (None if c["proxy"] else d["file"])
+                day = _local_midnight(ref) if ref else shoot_day
+                cands = [day + k * 86400 + c["tc"] for k in (-1, 0, 1)]
+                c["date"] = min(cands, key=lambda x: abs(x - (ref or day + c["tc"])))
+                c["date_src"] = "timecode"
+            elif c["_meta"]:
+                c["date"], c["date_src"] = c["_meta"], "file metadata"
+            elif not c["proxy"]:
+                c["date"], c["date_src"] = d["file"], "file date"
+            else:
+                c["date"], c["date_src"] = None, "proxy (no usable date)"
 
 
 class Cancelled(Exception):
@@ -136,7 +219,8 @@ def probe(path):
         return None
     finally:
         c.close()
-    out["date"], out["date_src"] = _date_from_tags(tags, out["samplerate"], path, duration)
+    out["dates"] = _date_candidates(tags, out["samplerate"], path, duration)
+    out["tc"] = _parse_tc(tags.get("timecode"), out.get("fps"))
     return out
 
 
@@ -412,7 +496,39 @@ def match_all(clips, min_votes, ratio, progress=None, cancel=None):
 
 
 # ---- placement -------------------------------------------------------------
-def place(clips, edges):
+def _drop_clock_contradictions(clips, edges, min_votes):
+    """Drop weak matches that contradict well-established device clocks.
+
+    For each pair of devices, every match implies a gap between their clocks. When most
+    matches agree on that gap, a lone weak match that disagrees by minutes is almost
+    certainly a false match (repetitive sound, music). Strong matches are kept even if
+    they disagree: a clock can genuinely change mid-shoot (re-jam, battery swap)."""
+    by_pair = {}
+    for e in edges:
+        a, b = clips[e["a"]], clips[e["b"]]
+        if not a.get("date") or not b.get("date"):
+            continue
+        gap = (b["date"] - a["date"]) - e["off"]
+        key = (a["dev"], b["dev"])
+        if a["dev"] > b["dev"]:
+            key, gap = (b["dev"], a["dev"]), -gap
+        by_pair.setdefault(key, []).append((gap, e))
+    dropped = []
+    for items in by_pair.values():
+        support = [sum(abs(g2 - g) < 2 for g2, _ in items) for g, _ in items]
+        best = int(np.argmax(support))
+        if support[best] < 2:
+            continue
+        ref = items[best][0]
+        for (g, e), sup in zip(items, support):
+            if sup == 1 and abs(g - ref) > 120 and e["votes"] < 3 * min_votes:
+                dropped.append(e)
+    ids = {id(e) for e in dropped}
+    return [e for e in edges if id(e) not in ids], dropped
+
+
+def place(clips, edges, min_votes=12):
+    edges, dropped = _drop_clock_contradictions(clips, edges, min_votes)
     n = len(clips)
     parent = list(range(n))
 
@@ -472,36 +588,13 @@ def place(clips, edges):
     comp_of = {i: gi for gi, g in enumerate(groups) for i in g}
     devs = sorted({c["dev"] for c in clips})
 
-    def solve(conv, fallback=False):
-        """Each device clock = audio timeline + constant. Blocks that share no sound
-        are positioned by those clocks (start- or end-of-recording dates, per device).
-
-        With fallback, devices that share no sound with anything placed are assumed to
-        have the same clock as the linked devices (or, if that puts them hours away from
-        the timeline, a wrong clock: they then start at the beginning of the timeline)."""
+    def solve(conv):
+        """Score a start/end-of-recording convention per device: each device clock =
+        timeline + one constant; blocks that share no sound are positioned by it."""
         obs = [(i, clips[i]["dev"], comp_of[i],
                 rel[i] - (clips[i]["date"] - (clips[i]["duration"] if conv[clips[i]["dev"]] else 0)))
                for i in range(n) if clips[i].get("date")]
         G, O = {0: 0.0}, {}
-        guessed = set()
-        while True:
-            iterate(obs, G, O)
-            todo = [d for d in devs if d not in O and any(dd == d for _, dd, _, _ in obs)]
-            if not fallback or not todo:
-                break
-            placed = [rel[i] - G[g] for i, _, g, _ in obs if g in G] or [rel[i] for i in groups[0]]
-            lo, hi = min(placed), max(placed)
-            d = todo[0]
-            dates = [rel[i] - y for i, dd, _, y in obs if dd == d]   # = adjusted dates
-            off = float(np.median(list(O.values()))) if O else lo - min(dates)
-            if max(dates) + off < lo - 6 * 3600 or min(dates) + off > hi + 6 * 3600:
-                off = lo - min(dates)
-            O[d] = off
-            guessed.add(d)
-        resid = sum(abs(y - G[g] - O[dd]) for i, dd, g, y in obs if g in G and dd in O)
-        return G, resid, guessed
-
-    def iterate(obs, G, O):
         for _ in range(40):
             changed = False
             for d in devs:
@@ -518,27 +611,115 @@ def place(clips, edges):
                     G[g] = new
             if not changed:
                 break
+        resid = sum(abs(y - G[g] - O[dd]) for i, dd, g, y in obs if g in G and dd in O)
+        return G, resid
+
+    multi = {gi for gi, g in enumerate(groups) if len({clips[j]["dev"] for j in g}) > 1}
+
+    def local_place(conv):
+        """Position blocks that share no sound using device clocks, allowing a device's
+        clock to change during the shoot: each clip uses the offset of the nearest
+        (in that device's own time) clip whose position is pinned by sound.
+
+        Blocks are placed one at a time, nearest evidence first, and each newly placed
+        multi-device block becomes evidence for the others. Devices with no sound link
+        at all get a guessed clock (same as the others, or timeline start if that is
+        hours off)."""
+        when = {i: clips[i]["date"] - (clips[i]["duration"] if conv[clips[i]["dev"]] else 0)
+                for i in range(n) if clips[i].get("date")}
+        anchors = {d: [] for d in devs}
+        G = {0: 0.0}
+        guessed = set()
+        evidence = {}                     # group -> device-time distance to the clock check used
+
+        def add_anchors(g):
+            if g == 0 or g in multi:
+                for i in groups[g]:
+                    if i in when:
+                        anchors[clips[i]["dev"]].append((when[i], rel[i] - G[g] - when[i]))
+
+        add_anchors(0)
+        pending = set(range(1, len(groups)))
+        while pending:
+            best = None
+            for g in pending:
+                cands = []
+                for i in groups[g]:
+                    A = anchors[clips[i]["dev"]]
+                    if i in when and A:
+                        dist, off = min((abs(t - when[i]), o) for t, o in A)
+                        cands.append((dist, rel[i] - when[i] - off))
+                if not cands:
+                    continue
+                pick = max(cands, key=lambda c: (sum(abs(x[1] - c[1]) < 2 for x in cands), -c[0]))
+                if best is None or pick[0] < best[0]:
+                    best = (pick[0], g, pick[1])
+            if best is None:
+                # nothing placeable: give one unlinked device a guessed clock, then continue
+                todo = [d for d in devs if not anchors[d]
+                        and any(i in when and clips[i]["dev"] == d for g in pending for i in groups[g])]
+                if not todo:
+                    break
+                d = todo[0]
+                placed = [rel[i] - G[g] for g in G for i in groups[g]]
+                lo, hi = min(placed), max(placed)
+                all_offs = [o for A in anchors.values() for _, o in A]
+                dates = [when[i] for g in pending for i in groups[g] if i in when and clips[i]["dev"] == d]
+                off = float(np.median(all_offs)) if all_offs else lo - min(dates)
+                if max(dates) + off < lo - 6 * 3600 or min(dates) + off > hi + 6 * 3600:
+                    off = lo - min(dates)
+                anchors[d].append((min(dates), off))
+                guessed.add(d)
+                continue
+            dist, g, val = best
+            G[g] = val
+            evidence[g] = dist
+            pending.discard(g)
+            add_anchors(g)
+        return G, guessed, anchors, evidence
 
     best = None
     combos = [dict(zip(devs, bits)) for bits in np.ndindex(*([2] * len(devs)))] \
         if len(devs) <= 8 else [dict.fromkeys(devs, 0)]
     for conv in combos:
-        G, resid, _ = solve(conv)
+        G, resid = solve(conv)
         score = (-len(G), round(resid, 3), sum(conv.values()))
         if best is None or score < best[0]:
             best = (score, conv)
-    G, _, guessed = solve(best[1], fallback=True)
+    G, guessed, anchors, evidence = local_place(best[1])
+    # Clock report: split each device's sound-verified offsets into 'settings' (eras).
+    clock = {}
+    for d in devs:
+        eras = []
+        for t, o in sorted(anchors[d]):
+            if eras and abs(o - eras[-1]["offs"][-1]) < 2:
+                eras[-1]["offs"].append(o)
+                eras[-1]["t1"] = t
+            else:
+                eras.append({"t0": t, "t1": t, "offs": [o]})
+        clock[d] = {"end_stamp": bool(best[1][d]), "guessed": d in guessed,
+                    "eras": [{"t0": e["t0"], "t1": e["t1"], "n": len(e["offs"]),
+                              "spread": float(np.ptp(e["offs"]))} for e in eras]}
     for gi, g in enumerate(groups):
         for i in g:
             if gi == 0:
                 clips[i]["start"] = rel[i]
                 clips[i]["status"] = "synced" if len(g) > 1 else "only clip"
             elif gi in G:
+                # Clips in a block are synced to each other by sound; only the block's
+                # position on the day's timeline comes from clocks.
                 clips[i]["start"] = rel[i] - G[gi]
-                clips[i]["status"] = "block placed by date" if len(g) > 1 else "placed by date"
-                clips[i]["block"] = len(g)
-                if clips[i]["dev"] in guessed and not clips[i]["note"]:
-                    clips[i]["note"] = "device shares no sound with the others; its clock is a guess"
+                clips[i]["status"] = "synced" if len(g) > 1 else "placed by date"
+                if len(g) > 1:
+                    continue
+                if clips[i]["dev"] in guessed:
+                    how = "device shares no sound with the others, so its clock is a guess"
+                else:
+                    dist = evidence.get(gi, 0)
+                    how = ("clock checked against sound "
+                           + (f"{dist / 60:.0f} min away" if dist >= 60 else "nearby")
+                           + ("  (far: check)" if dist > 3 * 3600 else ""))
+                clips[i]["note"] = f"{clips[i]['note']}; {how}" if clips[i]["note"] else how
     unplaced = [g for gi, g in enumerate(groups) if gi and gi not in G]
     end = max([clips[i]["start"] + clips[i]["duration"] for i in range(n) if "start" in clips[i]] or [0])
     cursor = end + 30
@@ -550,10 +731,23 @@ def place(clips, edges):
             if clips[i].get("proxy") and not clips[i]["note"]:
                 clips[i]["note"] = "proxy with no shared sound (proxy dates can't be trusted)"
         cursor = max(clips[i]["start"] + clips[i]["duration"] for i in g) + 10
+    # Dates have 1-second resolution, so back-to-back recordings (GoPro chapters, a drone's
+    # consecutive flights) can overlap by a fraction of a second. Butt a date-placed clip
+    # up against the previous clip of its device instead of opening an extra track.
+    for d in devs:
+        dc = sorted((c for c in clips if c["dev"] == d), key=lambda c: c["start"])
+        for a, b in zip(dc, dc[1:]):                    # push date-placed clips later
+            over = a["start"] + a["duration"] - b["start"]
+            if b["status"] == "placed by date" and 0 < over < 1.5:
+                b["start"] += over
+        for a, b in reversed(list(zip(dc, dc[1:]))):    # or earlier, before a sound-placed one
+            over = a["start"] + a["duration"] - b["start"]
+            if a["status"] == "placed by date" and 0 < over < 1.5:
+                a["start"] -= over
     t0 = min(c["start"] for c in clips)
     for c in clips:
         c["start"] -= t0
-    return conflicts
+    return conflicts, clock, dropped
 
 
 # ---- XML (Final Cut Pro 7 XML, which Premiere imports) ---------------------
@@ -579,15 +773,19 @@ def build_xml(clips, devices, seq_name, seq_fps, keep_silent, skip_silent_clips)
         dc = sorted([c for c in clips if c["dev"] == d], key=lambda c: c["f_start"])
         if not dc:
             continue
-        lanes = []
+        lanes = []                                   # last clip on each lane
         for c in dc:
-            for li, lend in enumerate(lanes):
-                if c["f_start"] >= lend:
-                    lanes[li] = c["f_end"]
+            for li, last in enumerate(lanes):
+                over = last["f_end"] - c["f_start"]
+                if over <= 0 or (over <= 2 and last["f_len"] > over + 1):
+                    if over > 0:                     # chapters/files sharing a frame or two:
+                        last["f_len"] -= over        # trim the earlier one instead of a new track
+                        last["f_end"] -= over
+                    lanes[li] = c
                     c["lane"] = li
                     break
             else:
-                lanes.append(c["f_end"])
+                lanes.append(c)
                 c["lane"] = len(lanes) - 1
         maxch = max(c["nch"] for c in dc)
         live_ch = set()
@@ -640,7 +838,7 @@ def build_xml(clips, devices, seq_name, seq_fps, keep_silent, skip_silent_clips)
                 f"{frate}<duration>{max(1, int(round(c['duration'] * fpsf)))}</duration>"
                 f"<media>{media}</media></file>")
 
-    label = {"placed by date": "Orange", "block placed by date": "Yellow", "NOT PLACED": "Red"}
+    label = {"placed by date": "Orange", "NOT PLACED": "Red"}
 
     by_clip = {}
     for key, val in item_id.items():
@@ -816,12 +1014,18 @@ def run(project, ref_channels=None, fps=None, keep_silent=False, skip_silent_cli
                 continue
             info.update(dev=d, idx=len(clips), name=os.path.basename(path),
                         rel=os.path.relpath(path, project), proxy=proxy_base(path) is not None)
-            if info["proxy"]:
-                # a proxy's dates are when it was transcoded, not when it was shot
-                info["date"], info["date_src"] = None, "proxy (date ignored)"
             clips.append(info)
     if not clips:
         raise ValueError("None of the files could be read.")
+    resolve_dates(clips, len(devices))
+    for di, dname in enumerate(devices):
+        dc = [c for c in clips if c["dev"] == di]
+        srcs = {}
+        for c in dc:
+            srcs[c["date_src"]] = srcs.get(c["date_src"], 0) + 1
+        log(f"Dates for {dname}: " + ", ".join(f"{v} {k}" for k, v in srcs.items())
+            + ("  (timecode is record-run, not time of day: ignored)"
+               if any(c.get("tc_mode") for c in dc) else ""))
 
     cache_dir = os.path.join(project, CACHE_DIR)
     if clear_cache and os.path.isdir(cache_dir):
@@ -894,7 +1098,10 @@ def run(project, ref_channels=None, fps=None, keep_silent=False, skip_silent_cli
 
     say(0.97, "Building timeline...")
     log(f"{len(edges)} matches between devices")
-    conflicts = place(clips, edges)
+    conflicts, clock, dropped = place(clips, edges, min_votes)
+    for e in dropped:
+        log(f"  dropped weak match (contradicts device clocks): "
+            f"{clips[e['a']]['rel']} -> {clips[e['b']]['rel']} ({e['votes']} votes)")
     for e in conflicts:
         log(f"  CONFLICT {clips[e['a']]['rel']} <-> {clips[e['b']]['rel']}")
     for c in sorted(clips, key=lambda c: c["start"]):
@@ -907,7 +1114,7 @@ def run(project, ref_channels=None, fps=None, keep_silent=False, skip_silent_cli
         fh.write(xml)
     report_path = os.path.join(project, "SlingSync_report.txt")
     counts = write_report(report_path, name, seq_fps, nv, na, clips, lane_info,
-                          conflicts, skipped, project, edges)
+                          conflicts, skipped, project, edges, clock, devices)
     say(1.0, "Done")
     need = [{"status": c["status"], "file": c["rel"], "at": tc(c["start"]), "note": c["note"]}
             for c in sorted(clips, key=lambda c: c["start"]) if c["status"] != "synced"]
@@ -916,7 +1123,8 @@ def run(project, ref_channels=None, fps=None, keep_silent=False, skip_silent_cli
             "video_tracks": nv, "audio_tracks": na, "fps": seq_fps}
 
 
-def write_report(path, name, seq_fps, nv, na, clips, lane_info, conflicts, skipped, proj, edges=()):
+def write_report(path, name, seq_fps, nv, na, clips, lane_info, conflicts, skipped, proj, edges=(),
+                 clock=None, devices=()):
     counts = {}
     for c in clips:
         counts[c["status"]] = counts.get(c["status"], 0) + 1
@@ -933,15 +1141,32 @@ def write_report(path, name, seq_fps, nv, na, clips, lane_info, conflicts, skipp
     need = [c for c in clips if c["status"] != "synced"]
     if need:
         R.append("CHECK THESE BY EYE")
-        R.append("  block placed by date = synced by sound with each other, but the block shares no sound")
-        R.append("                         with the rest, so its position comes from the file dates")
-        R.append("  placed by date       = no sound overlap with any other device, positioned by file date")
-        R.append("  NOT PLACED           = no usable sound or date, parked after the end of the timeline")
+        R.append("  placed by date = no sound shared with another device (cutaways, drone, camera")
+        R.append("                   rolling while the recorder was off); positioned by its device's")
+        R.append("                   clock (date/timecode), corrected using nearby sound-synced clips")
+        R.append("  NOT PLACED     = no usable sound or date, parked after the end of the timeline")
         for c in sorted(need, key=lambda c: c["start"]):
-            why = c["note"]
-            if c["status"] == "block placed by date":
-                why = why or f"block of {c['block']} clips"
-            R.append(f"  [{c['status']}] {c['rel']}  at {tc(c['start'])}  {why}")
+            R.append(f"  [{c['status']}] {c['rel']}  at {tc(c['start'])}  {c['note']}")
+        R.append("")
+    if clock:
+        R.append("Device clocks (how well each device's clock agrees with the sound, across")
+        R.append("separate blocks; this is how accurate 'placed by date' positions are):")
+        hm = lambda t: datetime.datetime.fromtimestamp(t).strftime("%H:%M")
+        for d, info in sorted(clock.items()):
+            stamp = "end of recording" if info["end_stamp"] else "start of recording"
+            eras = info["eras"]
+            if info["guessed"]:
+                q = "no sound link to other devices: clock is a guess"
+            elif not eras:
+                q = "no sound-verified clips"
+            elif len(eras) == 1:
+                q = (f"steady, checked against sound {eras[0]['n']} times "
+                     f"(within {eras[0]['spread']:.1f} s)")
+            else:
+                parts = ", ".join(f"{hm(e['t0'])}-{hm(e['t1'])}" for e in eras)
+                q = (f"CLOCK CHANGED during the shoot ({len(eras)} settings, device time {parts}). "
+                     "Date-placed clips use the nearest setting; check those near a change")
+            R.append(f"  {devices[d]}: dates mark {stamp}; {q}")
         R.append("")
     frame_ms = 1000 / seq_fps
     drifting = [e for e in edges if abs(e.get("drift_ms", 0)) >= frame_ms / 4]
