@@ -73,6 +73,24 @@ async function importXml(nativePath, prefix) {
   return false;
 }
 
+// Copy text to the clipboard. UXP's own setContent takes {"text/plain": …}; writeText can
+// report success without putting anything on the clipboard. Returns true or an error text.
+async function copyText(text) {
+  const cb = navigator.clipboard;
+  let err = "no clipboard";
+  for (const attempt of [() => cb.setContent({ "text/plain": text }), () => cb.writeText({ "text/plain": text }), () => cb.writeText(text)]) {
+    try {
+      await attempt();
+      try {                                   // check it really arrived, when reading is allowed
+        const got = await cb.getContent();
+        if (got && got["text/plain"] !== undefined && got["text/plain"] !== text) { err = "clipboard stayed empty"; continue; }
+      } catch (e) { /* can't verify: assume it worked */ }
+      return true;
+    } catch (e) { err = String(e && e.message ? e.message : e); }
+  }
+  return err;
+}
+
 // ---- the panel engine ----
 let engine = null;
 let cancelRequested = false;
@@ -123,6 +141,12 @@ async function syncFolder(folderPath, folderName) {
     showBar(null);
   }
 }
+
+document.getElementById("copyDetails").addEventListener("click", async () => {
+  const r = await copyText(detailBox.textContent.trim());
+  document.getElementById("copyDetails").textContent = r === true ? "Copied ✓ (paste with ⌘V)" : "Couldn't copy: select the text and press ⌘C";
+  setTimeout(() => { document.getElementById("copyDetails").textContent = "Copy details"; }, 4000);
+});
 
 document.getElementById("cancel").addEventListener("click", () => {
   cancelRequested = true;

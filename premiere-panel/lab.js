@@ -19,13 +19,8 @@
 
   // Copy the whole log (to paste into a message instead of screenshots)
   document.getElementById("labCopy").addEventListener("click", async () => {
-    const text = out.textContent.trim();
-    try {
-      await navigator.clipboard.writeText(text);
-      log("\n(Log copied ✓)");
-    } catch (e) {
-      log("\n(Couldn't copy: " + e + ". Select the text and press ⌘C instead.)");
-    }
+    const r = await copyText(out.textContent.trim());
+    log(r === true ? "\n(Log copied ✓ — paste it with ⌘V)" : "\n(Couldn't copy: " + r + ". Select the text and press ⌘C instead.)");
   });
 
   // ---- Test 1: read a WAV in chunks, measure speed, per-channel level ----
