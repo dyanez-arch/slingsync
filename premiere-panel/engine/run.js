@@ -9,6 +9,7 @@
 //     exists(path), mkdir(path),
 //     open(path) -> handle,  readAt(handle, size, pos) -> Uint8Array,  close(handle)
 //     readFile(path) -> Uint8Array,  writeFile(path, Uint8Array | string)
+//     openWrite(path) -> handle,  writeAt(handle, Uint8Array, pos)      (audio export)
 //   }
 //   media = SlingMedia instance whose read() calls platform.readAt
 (function (root) {
@@ -85,17 +86,17 @@
   }
 
   // ---- analysis (engine.analyze): silent/flat channels, mono mix, fingerprint ----
-  async function decodeAll(P, media, path, onBlock, checkCancel) {
+  async function decodeAll(P, media, path, onBlock, checkCancel, rate = SR, chunk = CHUNK, onBlockAsync = null) {
     const st = await P.stat(path);
     const h = await P.open(path);
     try {
       const info = await media.open(h, st.size);
       if (!info) throw new Error("file could not be opened");
-      const nch = media.start(SR);
+      const nch = media.start(rate);
       if (nch < 0) throw new Error("audio could not be decoded");
       // full blocks of CHUNK frames, last one partial (like engine._blocks)
       let pend = [], pendN = 0;
-      const flush = (n) => {
+      const flush = async (n) => {
         const blk = new Float32Array(n * nch);
         let o = 0;
         while (o < n * nch) {
@@ -105,17 +106,17 @@
           if (take === p.length) pend.shift(); else pend[0] = p.subarray(take);
         }
         pendN -= n;
-        onBlock(blk, n, nch);
+        if (onBlockAsync) await onBlockAsync(blk, n, nch); else onBlock(blk, n, nch);
       };
       for (let k = 0; ; k++) {
         if (checkCancel && k % 8 === 0) checkCancel();
         if (k % 8 === 7) await tick();
-        const b = await media.read(CHUNK);
+        const b = await media.read(chunk);
         if (!b) break;
         pend.push(b.data); pendN += b.frames;
-        while (pendN >= CHUNK) flush(CHUNK);
+        while (pendN >= chunk) await flush(chunk);
       }
-      if (pendN) flush(pendN);
+      if (pendN) await flush(pendN);
       return nch;
     } finally {
       media.close();
@@ -221,6 +222,140 @@
     return meta;
   }
 
+  // ---- audio files (engine._Wav24, engine._safe, engine.export_stems) ----
+  const WAV_LIMIT = 4 * 1024 ** 3 - 1024;            // plain WAV files can't exceed 4 GB
+
+  // Streaming 24-bit mono WAV writer, same bytes as Python's wave module + engine._Wav24
+  class Wav24 {
+    constructor(P, path, rate) { this.P = P; this.path = path; this.rate = rate; this.n = 0; this.buf = []; this.bufN = 0; }
+    async open() {
+      this.h = await this.P.openWrite(this.path);
+      await this.P.writeAt(this.h, this.header(0), 0);
+      this.pos = 44;
+    }
+    header(dataBytes) {
+      const b = new Uint8Array(44), v = new DataView(b.buffer);
+      const tag = (o, t) => { for (let i = 0; i < 4; i++) b[o + i] = t.charCodeAt(i); };
+      tag(0, "RIFF"); v.setUint32(4, 36 + dataBytes, true); tag(8, "WAVE"); tag(12, "fmt ");
+      v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+      v.setUint32(24, this.rate, true); v.setUint32(28, this.rate * 3, true);
+      v.setUint16(32, 3, true); v.setUint16(34, 24, true); tag(36, "data"); v.setUint32(40, dataBytes, true);
+      return b;
+    }
+    async write(x) {                                  // Float32Array or null (= silence of length n)
+      const out = new Uint8Array(x.length * 3);
+      const hi = Math.fround(1.0 - 1.0 / 8388608);
+      for (let i = 0, o = 0; i < x.length; i++, o += 3) {
+        let v = x[i];
+        if (v !== v) v = 0;                           // NaN -> 0 (nan_to_num); ±inf clip below
+        v = v < -1 ? -1 : (v > hi ? hi : v);
+        const q = C.pyRound(v * 8388608);             // numpy rounds half to even
+        out[o] = q & 255; out[o + 1] = (q >> 8) & 255; out[o + 2] = (q >> 16) & 255;
+      }
+      this.n += x.length;
+      this.buf.push(out); this.bufN += out.length;
+      if (this.bufN >= 4 << 20) await this.flush();
+    }
+    async silence(n) {
+      while (n > 0) { const k = Math.min(n, 1 << 20); await this.write(new Float32Array(k)); n -= k; }
+    }
+    async flush() {
+      if (!this.bufN) return;
+      const all = new Uint8Array(this.bufN);
+      let o = 0;
+      for (const b of this.buf) { all.set(b, o); o += b.length; }
+      await this.P.writeAt(this.h, all, this.pos);
+      this.pos += all.length; this.buf = []; this.bufN = 0;
+    }
+    async close() {
+      await this.flush();
+      if (this.n) await this.P.writeAt(this.h, this.header(this.n * 3), 0);
+      await this.P.close(this.h);
+    }
+  }
+
+  // engine._safe: keep letters/digits (any language) and " ._-()"
+  const safeName = (name) => {
+    const t = Array.from(name).map((ch) => (/[\p{L}\p{N}]/u.test(ch) || " ._-()".includes(ch) ? ch : "_")).join("").trim();
+    return t || "device";
+  };
+
+  async function exportStems(P, media, clips, devices, laneInfo, outDir, rate, progress, checkCancel) {
+    const say = progress || (() => {});
+    const withAudio = clips.filter((c) => c.nch);
+    if (!withAudio.length) return [];
+    if (!rate) {                                    // most common source rate
+      const cnt = new Map();
+      for (const c of withAudio) cnt.set(c.samplerate, (cnt.get(c.samplerate) || 0) + 1);
+      let best = -1;
+      for (const [r, n] of cnt) if (n > best) { best = n; rate = r; }
+    }
+    const total = Math.ceil(Math.max(...withAudio.map((c) => c.start + c.duration)) * rate);
+    if (total * 3 > WAV_LIMIT) {
+      throw new Error(`The synced timeline is ${C.pyFixed(total / rate / 3600, 1)} hours long, which makes each ` +
+        "audio file larger than the 4 GB WAV limit. Sync fewer days at once, or use the Premiere XML instead.");
+    }
+    const chansOf = new Map(laneInfo.map(([dname, , chans]) => [dname, chans]));
+    if (!(await P.exists(outDir))) await P.mkdir(outDir);
+    const jobs = [];
+    devices.forEach((dname, d) => {
+      const dc = withAudio.filter((c) => c.dev === d);
+      const lanes = [...new Set(dc.map((c) => c.lane || 0))].sort((a, b) => a - b);
+      for (const lane of lanes) {
+        const lc = dc.filter((c) => (c.lane || 0) === lane).sort((a, b) => a.start - b.start);
+        if (lc.length && (chansOf.get(dname) || []).length) jobs.push([dname, lane, lc]);
+      }
+    });
+    const nLanes = new Map();
+    for (const [dname] of jobs) nLanes.set(dname, (nLanes.get(dname) || 0) + 1);
+    const files = [];
+    let done = 0;
+    const todo = jobs.reduce((s, j) => s + j[2].length, 0);
+    for (const [dname, lane, lc] of jobs) {
+      const chans = chansOf.get(dname);
+      const suffix = nLanes.get(dname) > 1 ? ` (lane ${lane + 1})` : "";
+      const names = chans.map((ch) => P.join(outDir, `${safeName(dname)}${suffix} - ch${ch}.wav`));
+      const writers = names.map((p) => new Wav24(P, p, rate));
+      for (const w of writers) await w.open();
+      try {
+        let pos = 0;
+        for (const c of lc) {
+          checkCancel();
+          done++;
+          say(done / Math.max(1, todo), `Writing audio files (${done}/${todo})`);
+          const start = C.pyRound(c.start * rate);
+          let skip = Math.max(0, pos - start);
+          if (start > pos) { for (const w of writers) await w.silence(start - pos); pos = start; }
+          let written = 0;
+          const want = C.pyRound(c.duration * rate) - skip;
+          try {
+            await decodeAll(P, media, c.path, null, checkCancel, rate, rate * 10, async (blk, n, ch) => {
+              let from = 0;
+              if (skip) { const cut = Math.min(skip, n); from = cut; skip -= cut; }
+              const m = Math.max(0, Math.min(n - from, want - written));
+              if (!m) return;
+              for (let k = 0; k < writers.length; k++) {
+                const chI = chans[k] - 1, x = new Float32Array(m);
+                if (chI < ch) for (let i = 0; i < m; i++) x[i] = blk[(from + i) * ch + chI];
+                await writers[k].write(x);
+              }
+              written += m;
+            });
+          } catch (e) {
+            if (e instanceof Cancelled) throw e;     // unreadable audio: leave silence
+          }
+          if (written < want) for (const w of writers) await w.silence(want - written);
+          pos += want;
+        }
+        for (const w of writers) await w.silence(Math.max(0, total - pos));
+      } finally {
+        for (const w of writers) { try { await w.close(); } catch (e) { /* keep going */ } }
+      }
+      files.push(...names);
+    }
+    return files;
+  }
+
   // Reads part of a clip's cached mono mix; zero outside the clip.
   function monoReader(P, path, len) {
     return async (start, n) => {
@@ -243,8 +378,9 @@
   async function run(P, media, project, opts = {}) {
     const o = Object.assign({ refChannels: {}, fps: null, keepSilent: false, skipSilentClips: false,
       silenceDb: -60.0, flatDb: 3.0, minVotes: 12, output: null, name: null, cacheDir: null,
-      reportPath: null, compact: false, version: "panel", progress: null, isCancelled: null, log: null }, opts);
-    const say = o.progress || (() => {});
+      reportPath: null, compact: false, stems: false, stemsDir: null, stemsRate: null, version: "panel", progress: null, isCancelled: null, log: null }, opts);
+    const outer = o.progress || (() => {});
+    const say = o.stems ? (f, m) => outer(0.85 * f, m) : outer;   // last part of the bar: audio files
     const log = o.log || (() => {});
     const checkCancel = () => { if (o.isCancelled && o.isCancelled()) throw new Cancelled(); };
     const name = o.name || C.basename(project);
@@ -348,18 +484,26 @@
       const endOf = (cs) => Math.max(...cs.map((c) => c.start + c.duration));
       log(`Compact timeline: ${C.tc(endOf(cc))} (full day ${C.tc(endOf(clips))}) -> ${compactXml}`);
     }
+    let stemFiles = [];
+    const stemsDir = o.stemsDir || P.join(project, `${name}_audio`);
+    if (o.stems) {
+      stemFiles = await exportStems(P, media, clips, devices, laneInfo, stemsDir, o.stemsRate,
+        (f, m) => outer(0.85 + 0.15 * f, m), checkCancel);
+      for (const f of stemFiles) log(`  audio file: ${f}`);
+    }
     const reportPath = o.reportPath || P.join(project, "SlingSync_report.txt");
     const [report, counts] = C.reportText({ version: o.version, name, seqFps, nv, na, clips, laneInfo, conflicts,
-      skipped, edges, clock, devices, stems: null, relPath: (p) => P.relPath(p, project) });
+      skipped, edges, clock, devices, stems: o.stems ? [stemsDir, stemFiles] : null, relPath: (p) => P.relPath(p, project) });
     await P.writeFile(reportPath, report);
-    say(1.0, "Done");
+    outer(1.0, "Done");
     const need = [...clips].sort((a, b) => a.start - b.start).filter((c) => c.status !== "synced")
       .map((c) => ({ status: c.status, file: c.rel, at: C.tc(c.start), note: c.note }));
     return { xml: out, report: reportPath, counts, need_check: need, files: clips.length, skipped, devices,
-      video_tracks: nv, audio_tracks: na, fps: seqFps, clips, edges, compact_xml: compactXml };
+      video_tracks: nv, audio_tracks: na, fps: seqFps, clips, edges, compact_xml: compactXml,
+      stems: stemFiles, stems_dir: o.stems ? stemsDir : null };
   }
 
-  const api = { run, scanDevices, probe, analyze, ANALYSIS_VERSION };
+  const api = { run, scanDevices, probe, analyze, exportStems, ANALYSIS_VERSION };
   root.SlingRun = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

@@ -18,6 +18,7 @@
     #syncFolder { font-weight: bold; padding: 12px; font-size: 13px; margin-bottom: 4px; }
     #compactFolder { margin-top: 0; }
     .hint { margin: 2px 0 4px; }
+    label { display: flex; align-items: flex-start; gap: 6px; margin: 8px 0 2px; color: #9a9a9a; }
     .small { font-size: 11px; }
     #detailsWrap { margin-top: 8px; }
     #footer { margin-top: 18px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.12); }
@@ -48,6 +49,9 @@
   <div class="muted hint"><b>Sync a Shoot</b>: pick the shoot folder (one subfolder per camera
     or recorder). <b>Compact Timeline</b>: makes a copy of the open sequence with every gap
     where nothing was recording cut out, for review or a transcript.</div>
+
+  <label class="small"><input type="checkbox" id="stems"> Also export audio files (one aligned WAV
+    per microphone, for audio editors)</label>
 
   <div id="bar" hidden><div id="barFill"></div></div>
   <div id="status" hidden></div>

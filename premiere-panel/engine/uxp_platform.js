@@ -43,6 +43,15 @@
         return new Uint8Array(ab, 0, n);
       },
       async close(h) { if (fs.close) await fs.close(h); },
+      // writing big files (audio export) piece by piece
+      async openWrite(p) {
+        if (typeof fs.write !== "function") throw new Error("This version of Premiere can't write files piece by piece (fs.write is missing)");
+        return await fs.open(p, "w");
+      },
+      async writeAt(h, bytes, pos) {
+        const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+        await fs.write(h, ab, 0, bytes.byteLength, pos);
+      },
       async readFile(p) { return new Uint8Array(await fs.readFile(p)); },
       async writeFile(p, data) { await fs.writeFile(p, toBuffer(data)); },
     };
