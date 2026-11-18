@@ -22,8 +22,9 @@ SlingSync.spec             PyInstaller spec
 ── Premiere Pro panel (JavaScript + WebAssembly, UXP) ──
 premiere-panel/
     manifest.json          plugin id, version, Premiere 27.0+, permissions
-    index.html, index.js   the panel (sync, import, About)
-    lab.js                 temporary feasibility tests (to be removed)
+    index.html, index.js   the panel (sync, Compact Timeline, import, About)
+    engine/                JavaScript port of the engine (core.js, run.js) + file access + decoder bridge
+    tests/                 panel engine vs desktop app (Node), feasibility tests
     wasm/ssdec.c           FFmpeg glue: open a file, list streams/tags, decode audio at any rate
     wasm/ssdec.js, .wasm   built decoder (scripts/build_panel_wasm.sh)
 scripts/build_panel_wasm.sh    builds FFmpeg 7.1.1 (audio only) + ssdec.c with Emscripten

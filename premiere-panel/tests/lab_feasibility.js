@@ -1,3 +1,6 @@
+// Feasibility tests run in Premiere 2027 on 2026-11-17/18 (results in docs/testing.md).
+// No longer loaded by the panel; kept for reference. To use again: add buttons with these ids
+// and a <pre id="labOut"> to index.html, and load this file after index.js.
 // Temporary feasibility tests for a panel-only (no app) SlingSync engine in JavaScript.
 // Each test writes plain-text results into #labOut so they can be screenshotted.
 (function () {

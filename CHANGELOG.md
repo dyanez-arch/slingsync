@@ -4,6 +4,17 @@ Every build that reaches anyone gets its own version number and section here. Te
 
 What was tested with each build is in the [testing log](docs/testing.md).
 
+## 1.2.1 (next)
+
+### Removed
+- The app's `slingsync://` link and `.slingsync_status.json` progress file: they let early panel versions ask the app to sync, and the panel has synced on its own since 0.6. (A leftover `.slingsync_status.json` in a shoot folder can be deleted.)
+
+### Premiere panel 0.11.0
+- The developer tests are out of the panel (kept in `premiere-panel/tests/lab_feasibility.js`). About shows only what users need.
+
+### Repository
+- Issue templates: *Report a problem* asks for the tool, version, Mac, the shoot, `SlingSync_report.txt` and the details log; *Suggest a feature*; links to the guides and Ko-fi.
+
 ## 1.2.0 (2026-11-18)
 
 Everything in the 1.2.0b1 and 1.2.0b2 test builds below, plus the **Premiere Pro 2027 panel** as a `.ccx` next to the DMG. Built by GitHub Actions run [44359091126](https://github.com/dyanez-arch/slingsync/actions/runs/44359091126) from tag `v1.2.0`; [release page](https://github.com/dyanez-arch/slingsync/releases/tag/v1.2.0) with `SlingSync-1.2.0-macOS-AppleSilicon.dmg` and `SlingSync-panel-0.10.3.ccx`.

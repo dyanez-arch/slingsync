@@ -54,8 +54,7 @@ If UXP Developer Tool says *"No applications are connected to the service"*, dev
 | `engine/uxp_platform.js` | `platform` inside Premiere (UXP `fs`) |
 | `engine/media.js` | Bridge to the decoder |
 | `wasm/` | FFmpeg 7.1.1 (audio only) compiled to WebAssembly: reads every format the app reads ([details and license](wasm/README.md)) |
-| `tests/` | Node test harness: `compare_decode.py`, `compare_sync.py` (panel engine vs desktop app on a real shoot), `run_sync.js`, `node_platform.js` |
-| `lab.js` | Developer tests used to check feasibility (About → Developer tests) |
+| `tests/` | Node test harness: `compare_decode.py`, `compare_sync.py` (panel engine vs desktop app on a real shoot), `run_sync.js`, `node_platform.js`; `lab_feasibility.js` (the in-Premiere feasibility tests from 2026-11-18, no longer loaded) |
 
 ### Things Premiere's plugin system needs (learned the hard way)
 

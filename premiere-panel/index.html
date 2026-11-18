@@ -8,7 +8,7 @@
            background: var(--uxp-host-background-color, #232323); }
     /* UXP panels don't scroll the body by themselves: scroll this wrapper instead */
     #page { height: 100%; overflow-y: auto; padding: 14px; box-sizing: border-box; }
-    #labOut, #detailLog { white-space: pre-wrap; font-size: 11px; user-select: text; max-height: 320px; overflow-y: auto;
+    #detailLog { white-space: pre-wrap; font-size: 11px; user-select: text; max-height: 320px; overflow-y: auto;
               background: rgba(0,0,0,0.25); padding: 8px; border-radius: 6px; margin: 6px 0 0; }
     header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
     header img { width: 40px; height: 40px; }
@@ -83,17 +83,6 @@
       <a class="ext" href="https://github.com/dyanez-arch/slingsync/issues">Report a problem or suggest a feature</a></p>
     <p id="supportLine" hidden>If SlingSync saves you time, you can
       <a class="ext" id="supportLink" href="">support its development</a>.</p>
-    <p><a href="#" id="labToggle" class="small muted">Developer tests</a></p>
-    <div id="lab" hidden>
-      <button id="labWav">Test 1: Read a WAV file…</button>
-      <button id="labAme">Test 2: Convert a clip with Media Encoder…</button>
-      <button id="labDsp">Test 3: JavaScript speed</button>
-      <button id="labDecode">Test 4: Built-in audio decoder?</button>
-      <button id="labWasm">Test 5: WebAssembly</button>
-      <button id="labDecoder">Test 6: Panel decoder (any file)…</button>
-      <button id="labCopy">Copy log</button>
-      <pre id="labOut"></pre>
-    </div>
   </div>
 </div>
   <script src="wasm/ssdec.js"></script>
@@ -102,6 +91,5 @@
   <script src="engine/run.js"></script>
   <script src="engine/uxp_platform.js"></script>
   <script src="index.js"></script>
-  <script src="lab.js"></script>
 </body>
 </html>

@@ -167,7 +167,6 @@ function toggle(linkId, boxId, showText, hideText) {
 }
 toggle("detailsToggle", "detailsBox", "Show details", "Hide details");
 toggle("aboutToggle", "about");
-toggle("labToggle", "lab");
 
 document.getElementById("copyDetails").addEventListener("click", async (ev) => {
   ev.preventDefault();

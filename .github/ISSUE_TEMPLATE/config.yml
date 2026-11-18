@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Guides and troubleshooting
+    url: https://github.com/dyanez-arch/slingsync/blob/main/docs/README.md
+    about: User guide, troubleshooting and how SlingSync works
+  - name: Support development on Ko-fi
+    url: https://ko-fi.com/pisdronio
+    about: SlingSync is free; donations help keep it going

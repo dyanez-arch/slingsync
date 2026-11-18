@@ -1,12 +1,10 @@
 """SlingSync desktop app (PySide6)."""
-import json
 import os
-import time
 import subprocess
 import sys
 import threading
 
-from PySide6.QtCore import QEvent, QObject, Qt, QThread, QTimer, QUrl, QUrlQuery, Signal
+from PySide6.QtCore import QObject, Qt, QThread, QUrl, Signal
 from PySide6.QtGui import QAction, QDesktopServices, QIcon, QKeySequence, QPixmap
 from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QComboBox,
                                QDialog, QDialogButtonBox, QFileDialog, QFrame, QHBoxLayout,
@@ -29,22 +27,6 @@ CREATOR_URL = "https://github.com/dyanez-arch"
 # Donation page (e.g. "https://ko-fi.com/<name>"); the About line is hidden while empty.
 # Keep in sync with SUPPORT_URL in premiere-panel/index.js.
 SUPPORT_URL = "https://ko-fi.com/pisdronio"
-
-
-STATUS_FILE = ".slingsync_status.json"
-
-
-def write_status(folder, **fields):
-    """Progress/result file the Premiere panel reads (written atomically)."""
-    try:
-        fields["time"] = time.time()
-        path = os.path.join(folder, STATUS_FILE)
-        tmp = path + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump(fields, fh)
-        os.replace(tmp, path)
-    except OSError:
-        pass
 
 
 def logo(size):
@@ -263,8 +245,6 @@ class MainWindow(QMainWindow):
         self.devices = []
         self.worker = None
         self.result = None
-        self.remote = None          # sync requested by the Premiere panel
-        self._last_status = 0.0
 
         root = QWidget()
         self.setCentralWidget(root)
@@ -504,38 +484,6 @@ class MainWindow(QMainWindow):
         self.drop.title.setText("Drop your project folder here")
 
     # ---- folder handling ----
-    # ---- requests from the Premiere panel (slingsync://sync?folder=...&id=...) ----
-    def remote_request(self, url):
-        q = QUrlQuery(url)
-        folder = q.queryItemValue("folder", QUrl.FullyDecoded)
-        rid = q.queryItemValue("id", QUrl.FullyDecoded)
-        audio = q.queryItemValue("audio") == "1"
-        self.showNormal()
-        self.raise_()
-        self.activateWindow()
-        if not folder or not os.path.isdir(folder):
-            if folder:
-                write_status(folder, id=rid, state="error", message="Folder not found.")
-            return
-        if self.worker:
-            write_status(folder, id=rid, state="error",
-                         message="SlingSync is busy with another sync. Try again when it finishes.")
-            return
-        self.remote = {"folder": folder, "id": rid}
-        self.stems.setChecked(audio)
-        write_status(folder, id=rid, state="scanning", progress=0.0,
-                     message="SlingSync is looking at the folder…")
-        self.load_folder(folder)
-
-    def _remote_status(self, force=False, **fields):
-        if not self.remote:
-            return
-        now = time.time()
-        if not force and now - self._last_status < 0.5:
-            return
-        self._last_status = now
-        write_status(self.remote["folder"], id=self.remote["id"], **fields)
-
     def load_folder(self, folder):
         if self.worker:
             return
@@ -554,9 +502,6 @@ class MainWindow(QMainWindow):
 
     def _scan_failed(self, msg):
         self.status.setText(msg)
-        if self.remote:
-            self._remote_status(force=True, state="error", message=msg)
-            self.remote = None
 
     def show_devices(self, devs):
         self.devices = devs
@@ -592,12 +537,6 @@ class MainWindow(QMainWindow):
                                 + ("  No device subfolders, so devices were guessed from file "
                                    "names: check the list." if loose else ""))
             self.sync_btn.setEnabled(True)
-            if self.remote and self.remote["folder"] == self.folder:
-                self.start_sync()               # requested from Premiere: go straight ahead
-                return
-        if self.remote and self.remote["folder"] == self.folder:
-            self._remote_status(force=True, state="error", message=self.status.text())
-            self.remote = None
 
     # ---- syncing ----
     def start_sync(self):
@@ -639,19 +578,10 @@ class MainWindow(QMainWindow):
     def on_progress(self, frac, msg):
         self.bar.setValue(int(frac * 1000))
         self.status.setText(msg)
-        self._remote_status(state="syncing", progress=frac, message=msg)
 
     def on_done(self, res):
         self.worker = None
         self.result = res
-        if self.remote:
-            c = res["counts"]
-            self._remote_status(force=True, state="done", progress=1.0, xml=res["xml"],
-                                report=res["report"], stems=res.get("stems") or [],
-                                synced=c.get("synced", 0), files=res["files"],
-                                check=len(res["need_check"]),
-                                message="Done.")
-            self.remote = None
         self.set_busy(False)
         c = res["counts"]
         synced = c.get("synced", 0)
@@ -680,10 +610,6 @@ class MainWindow(QMainWindow):
 
     def on_failed(self, msg):
         self.worker = None
-        if self.remote:
-            self._remote_status(force=True, state="cancelled" if msg == "Cancelled." else "error",
-                                message=msg)
-            self.remote = None
         self.set_busy(False)
         self.status.setText(msg)
         if msg != "Cancelled.":
@@ -695,36 +621,13 @@ class MainWindow(QMainWindow):
         super().closeEvent(e)
 
 
-class SlingSyncApp(QApplication):
-    """Receives slingsync:// links (macOS sends them as file-open events), including the
-    one that launched the app, which can arrive before the window exists."""
-
-    def __init__(self, argv):
-        super().__init__(argv)
-        self.window = None
-        self.pending = []
-
-    def event(self, e):
-        if e.type() == QEvent.FileOpen and e.url().scheme() == "slingsync":
-            if self.window:
-                self.window.remote_request(e.url())
-            else:
-                self.pending.append(e.url())
-            return True
-        return super().event(e)
-
-
 def main():
-    app = SlingSyncApp(sys.argv)
+    app = QApplication(sys.argv)
     app.setApplicationName("SlingSync")
     app.setApplicationVersion(__version__)
     app.setWindowIcon(QIcon(ICON))
     w = MainWindow()
     w.show()
-    app.window = w
-    for url in app.pending:
-        QTimer.singleShot(0, lambda u=url: w.remote_request(u))
-    app.pending = []
     sys.exit(app.exec())
 
 
