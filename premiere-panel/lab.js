@@ -109,6 +109,33 @@
     else log("\nNo WAV appeared within 10 minutes. Is Media Encoder showing the job or an error?");
   });
 
+  // ---- Test 4: does Premiere's JavaScript have a built-in audio decoder (MP3/AAC/etc.)? ----
+  btn("labDecode", async () => {
+    const g = globalThis;
+    const has = (n) => { try { return typeof g[n] !== "undefined" ? typeof g[n] : "missing"; } catch (e) { return "error"; } };
+    for (const n of ["AudioContext", "OfflineAudioContext", "webkitAudioContext", "AudioDecoder",
+                     "EncodedAudioChunk", "WebAssembly", "Worker", "Blob", "URL", "Audio", "MediaSource"]) {
+      log(n + ": " + has(n));
+    }
+    const Ctx = g.OfflineAudioContext || g.AudioContext || g.webkitAudioContext;
+    if (!Ctx) { log("\nNo built-in audio decoder. (That's fine, there are other routes.)"); return; }
+    log("\nA decoder exists. Pick a short compressed file (MP3, M4A, MP4)…");
+    const f = await lfs.getFileForOpening({ types: ["mp3", "MP3", "m4a", "M4A", "mp4", "MP4", "mov", "MOV", "aif", "aiff", "wav"] });
+    if (!f) return;
+    log("File: " + f.nativePath);
+    const t0 = now();
+    const bytes = await fs.readFile(f.nativePath);
+    log("Read " + (bytes.byteLength / 1e6).toFixed(1) + " MB in " + ((now() - t0) / 1000).toFixed(1) + " s");
+    try {
+      const ctx = Ctx === g.OfflineAudioContext ? new Ctx(1, 8000, 8000) : new Ctx();
+      const t1 = now();
+      const buf = await ctx.decodeAudioData(bytes);
+      log(`Decoded: ${buf.numberOfChannels} ch, ${buf.sampleRate} Hz, ${(buf.duration / 60).toFixed(1)} min in ${((now() - t1) / 1000).toFixed(1)} s`);
+    } catch (e) {
+      log("decodeAudioData failed: " + e);
+    }
+  });
+
   // ---- Test 3: JavaScript speed for the sync maths (FFT spectrogram) ----
   btn("labDsp", async () => {
     log("Test 3 started…");
