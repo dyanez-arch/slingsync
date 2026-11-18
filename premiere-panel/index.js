@@ -1,5 +1,5 @@
 // SlingSync panel for Premiere Pro 2027 (UXP).
-// Sync Shoot Folder…: the panel's own engine (engine/*.js + wasm/ssdec, a JavaScript port of
+// Sync a Shoot…: the panel's own engine (engine/*.js + wasm/ssdec, a JavaScript port of
 // the desktop app's engine) syncs the folder inside Premiere, then imports the sequence.
 // Import from Shoot Folder… / Import XML File…: import an existing SlingSync XML.
 const ppro = require("premierepro");
@@ -13,21 +13,20 @@ const barFill = document.getElementById("barFill");
 let busy = false;
 
 function say(text, kind) {
+  statusBox.hidden = !text;
   statusBox.textContent = text;
   statusBox.className = kind || "";
 }
 
 function showBar(frac) {
-  if (frac === null) { bar.style.display = "none"; return; }
-  bar.style.display = "block";
+  bar.hidden = frac === null;
+  if (frac === null) return;
   barFill.style.width = Math.round(Math.max(0, Math.min(1, frac)) * 100) + "%";
 }
 
 function setBusy(b) {
   busy = b;
-  for (const id of ["syncFolder", "fromFolder", "fromFile"]) {
-    document.getElementById(id).disabled = b;
-  }
+  document.getElementById("syncFolder").disabled = b;
   document.getElementById("cancel").hidden = !b;
 }
 
@@ -113,6 +112,7 @@ function panelVersion() {
 async function syncFolder(folderPath, folderName) {
   cancelRequested = false;
   detailBox.textContent = "";
+  document.getElementById("detailsWrap").hidden = true;
   const lines = [];
   showBar(0);
   say("Starting…");
@@ -126,6 +126,7 @@ async function syncFolder(folderPath, folderName) {
       log: (line) => lines.push(line),
     });
     detailBox.textContent = lines.join("\n");
+    document.getElementById("detailsWrap").hidden = false;
     const synced = res.counts.synced || 0;
     const check = res.files - synced;
     const mins = ((Date.now() - t0) / 60000).toFixed(1);
@@ -134,6 +135,7 @@ async function syncFolder(folderPath, folderName) {
     await importXml(res.xml, summary);
   } catch (e) {
     detailBox.textContent = lines.join("\n");
+    document.getElementById("detailsWrap").hidden = !lines.length && !(e && e.stack);
     if (e && e.name === "Cancelled") say("Sync cancelled. Files already analysed are saved, so syncing again is faster.");
     else say("Sync failed:\n" + (e && e.message ? e.message : e), "err");
     if (!(e && e.name === "Cancelled")) detailBox.textContent += "\n\n" + (e && e.stack ? e.stack : e);
@@ -142,7 +144,20 @@ async function syncFolder(folderPath, folderName) {
   }
 }
 
-document.getElementById("copyDetails").addEventListener("click", async () => {
+function toggle(linkId, boxId, showText, hideText) {
+  const link = document.getElementById(linkId), box = document.getElementById(boxId);
+  link.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    box.hidden = !box.hidden;
+    if (showText) link.textContent = box.hidden ? showText : hideText;
+  });
+}
+toggle("detailsToggle", "detailsBox", "Show details", "Hide details");
+toggle("aboutToggle", "about");
+toggle("labToggle", "lab");
+
+document.getElementById("copyDetails").addEventListener("click", async (ev) => {
+  ev.preventDefault();
   const r = await copyText(detailBox.textContent.trim());
   document.getElementById("copyDetails").textContent = r === true ? "Copied ✓ (paste with ⌘V)" : "Couldn't copy: select the text and press ⌘C";
   setTimeout(() => { document.getElementById("copyDetails").textContent = "Copy details"; }, 4000);
@@ -166,30 +181,21 @@ document.getElementById("syncFolder").addEventListener("click", () => guarded(as
   if (folder) await syncFolder(folder.nativePath, folder.name);
 }));
 
-document.getElementById("fromFile").addEventListener("click", () => guarded(async () => {
-  try {
-    const file = await fsys.getFileForOpening({ types: ["xml"] });
-    if (file) await importXml(file.nativePath);
-  } catch (e) {
-    say("Couldn't open the file:\n" + e, "err");
-  }
-}));
-
-document.getElementById("fromFolder").addEventListener("click", () => guarded(async () => {
+document.getElementById("fromFolder").addEventListener("click", (ev) => { ev.preventDefault(); guarded(async () => {
   try {
     const folder = await fsys.getFolder();
     if (!folder) return;
     const entries = await folder.getEntries();
     const xmls = entries.filter((e) => e.isFile && e.name.endsWith("_synced.xml"));
     if (!xmls.length) {
-      say("No SlingSync XML in " + folder.name + ".\nUse Sync Shoot Folder… to sync it first.", "err");
+      say("“" + folder.name + "” hasn't been synced yet.\nUse Sync a Shoot… instead.", "err");
       return;
     }
     await importXml(xmls[0].nativePath);
   } catch (e) {
     say("Couldn't read the folder:\n" + e, "err");
   }
-}));
+}); });
 
 // ---- About ----
 // Donation page: set this once the page exists (e.g. "https://ko-fi.com/<name>"); the line
@@ -211,4 +217,4 @@ for (const a of document.querySelectorAll("a.ext")) {
 }
 
 showBar(null);
-say("Ready.");
+say("");

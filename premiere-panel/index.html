@@ -15,8 +15,12 @@
     h1 { font-size: 16px; margin: 0; }
     .muted { color: #9a9a9a; }
     button { display: block; width: 100%; margin: 8px 0; padding: 8px; font-size: 12px; }
-    #syncFolder { font-weight: bold; padding: 11px; }
-    label { display: flex; align-items: center; gap: 6px; margin: 4px 0 10px; }
+    #syncFolder { font-weight: bold; padding: 12px; font-size: 13px; }
+    .hint { margin: 2px 0 4px; }
+    .small { font-size: 11px; }
+    #detailsWrap { margin-top: 8px; }
+    #footer { margin-top: 18px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.12); }
+    #about { margin-top: 6px; }
     #bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.12); margin-top: 12px; }
     #barFill { height: 6px; border-radius: 3px; background: #3b9cff; width: 0%; }
     #status { margin-top: 10px; padding: 10px; border-radius: 6px; background: rgba(255,255,255,0.06);
@@ -34,54 +38,52 @@
     <img src="icons/logo.png" alt="">
     <div>
       <h1>SlingSync</h1>
-      <div class="muted">Panel prototype 0.6.1 · own engine</div>
+      <div class="muted">Multicam sync by sound</div>
     </div>
   </header>
 
-  <button id="syncFolder">Sync Shoot Folder…</button>
-  <div class="muted">Pick a shoot folder with one subfolder per camera or recorder (loose files
-    also work). SlingSync lines everything up by sound, right here in Premiere, and adds the
-    synced sequence to this project.</div>
+  <button id="syncFolder">Sync a Shoot…</button>
+  <div class="muted hint">Pick the shoot folder: one subfolder per camera or recorder.</div>
 
-  <div id="bar"><div id="barFill"></div></div>
-  <div id="status"></div>
+  <div id="bar" hidden><div id="barFill"></div></div>
+  <div id="status" hidden></div>
   <button id="cancel" hidden>Cancel</button>
-  <details>
-    <summary class="muted">Details (every file and match)</summary>
-    <button id="copyDetails">Copy details</button>
-    <pre id="detailLog"></pre>
-  </details>
 
-  <hr>
-  <div class="muted">Already synced?</div>
-  <button id="fromFolder">Import from Shoot Folder…</button>
-  <button id="fromFile">Import XML File…</button>
+  <div id="detailsWrap" hidden>
+    <a href="#" id="detailsToggle" class="small">Show details</a>
+    <div id="detailsBox" hidden>
+      <pre id="detailLog"></pre>
+      <a href="#" id="copyDetails" class="small">Copy details</a>
+    </div>
+  </div>
 
-  <hr>
-  <details id="about">
-    <summary class="muted">About SlingSync</summary>
-    <p><b>SlingSync panel</b> <span id="aboutVersion" class="muted"></span><br>
+  <div id="footer">
+    <a href="#" id="fromFolder" class="small">Import a synced folder</a>
+    <span class="muted">·</span>
+    <a href="#" id="aboutToggle" class="small">About</a>
+  </div>
+
+  <div id="about" hidden>
+    <p><b>SlingSync</b> <span id="aboutVersion" class="muted"></span><br>
       Free multicam sync by sound, for Premiere Pro.</p>
-    <p>Made by <a class="ext" href="https://github.com/dyanez-arch">Daniel Yanez</a>, documentary editor.<br>
-      Free and open source (MIT License).</p>
-    <p><a class="ext" href="https://github.com/dyanez-arch/slingsync">Source code, guides and the desktop app on GitHub</a><br>
+    <p>Made by <a class="ext" href="https://github.com/dyanez-arch">Daniel Yanez</a>, documentary editor.
+      Free and open source (MIT).</p>
+    <p><a class="ext" href="https://github.com/dyanez-arch/slingsync">Guides and the desktop app on GitHub</a><br>
       <a class="ext" href="https://github.com/dyanez-arch/slingsync/issues">Report a problem or suggest a feature</a></p>
     <p id="supportLine" hidden>If SlingSync saves you time, you can
       <a class="ext" id="supportLink" href="">support its development</a>.</p>
-  </details>
-
-  <details>
-    <summary class="muted">Developer tests (temporary)</summary>
-    <button id="labWav">Test 1: Read a WAV file…</button>
-    <button id="labAme">Test 2: Convert a clip with Media Encoder…</button>
-    <button id="labDsp">Test 3: JavaScript speed</button>
-    <button id="labDecode">Test 4: Built-in audio decoder?</button>
-    <button id="labWasm">Test 5: WebAssembly</button>
-    <button id="labDecoder"><b>Test 6: Panel decoder (any file)…</b></button>
-    <button id="labCopy">Copy log</button>
-    <pre id="labOut"></pre>
-  </details>
-
+    <p><a href="#" id="labToggle" class="small muted">Developer tests</a></p>
+    <div id="lab" hidden>
+      <button id="labWav">Test 1: Read a WAV file…</button>
+      <button id="labAme">Test 2: Convert a clip with Media Encoder…</button>
+      <button id="labDsp">Test 3: JavaScript speed</button>
+      <button id="labDecode">Test 4: Built-in audio decoder?</button>
+      <button id="labWasm">Test 5: WebAssembly</button>
+      <button id="labDecoder">Test 6: Panel decoder (any file)…</button>
+      <button id="labCopy">Copy log</button>
+      <pre id="labOut"></pre>
+    </div>
+  </div>
 </div>
   <script src="wasm/ssdec.js"></script>
   <script src="engine/media.js"></script>
