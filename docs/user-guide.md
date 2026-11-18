@@ -1,6 +1,6 @@
 # User guide
 
-SlingSync lines up clips from any number of cameras and audio recorders by matching their sound, then writes a Final Cut Pro 7 XML that Premiere Pro imports as a ready-synced sequence. Syncing by sound needs no timecode or slate. Clips that share no sound with another device are placed using the files' own clock information (recorder time, camera timecode if present, or file dates).
+SlingSync lines up clips from any number of cameras and audio recorders by matching their sound, then writes a Final Cut Pro 7 XML that Premiere Pro imports as a ready-synced sequence, and, if you like, aligned WAV files for any audio editor (see [Audio only](#4b-audio-only-podcasts-music-interviews-no-premiere-needed)). Syncing by sound needs no timecode or slate. Clips that share no sound with another device are placed using the files' own clock information (recorder time, camera timecode if present, or file dates).
 
 ## 1. Install
 
@@ -100,6 +100,26 @@ When it finishes, the window shows a summary and lists anything that needs check
 | (none) | synced | Lined up by sound with at least one other device. Separate scenes are positioned relative to each other by device clocks, but within a scene everything is synced by sound |
 | Orange | placed by date | Shares no sound with another device (cutaways, drone, a camera rolling while the recorder was off). Positioned by its device's clock (recorder clock, timecode or file date), corrected using the nearest sound-synced clip from the same device. The report says how far away that check was, or that the clock is a guess (e.g. a drone with no audio) |
 | Red | NOT PLACED | No usable sound and no usable date. Parked after the end of the timeline |
+
+## 4b. Audio only: podcasts, music, interviews (no Premiere needed)
+
+Tick **Also export audio files** before you click **Sync** (command line: `--audio`). Besides the XML, SlingSync writes a `<project>_audio` folder with **one WAV file per microphone/channel**:
+
+```
+Podcast Ep 12_audio/
+    Zoom H6 - ch1.wav
+    Zoom H6 - ch2.wav
+    Phone - ch1.wav
+    Cam A - ch1.wav
+```
+
+Drop **all of them at the very start (0:00) of the timeline** in any audio editor: Audacity, Reaper, Logic, Pro Tools, Descript, GarageBand, or Premiere/Resolve too. They line up to the audio sample. Gaps where a device wasn't recording are silence, and every file has the same length.
+
+- No video is needed: a folder of recorder, phone and laptop recordings works the same way. Video files contribute their audio.
+- Files are 24-bit WAV at the project's most common sample rate (usually 48 kHz). Channels that are silent in every file of a device are left out, as on the Premiere timeline.
+- **Size:** about 0.5 GB per hour of timeline per channel. A single WAV can't exceed 4 GB (about 7.7 hours at 48 kHz), so for very long days sync each part separately.
+- **Mics at different distances** hear the same voice a few milliseconds apart (sound travels about 1 m every 3 ms). SlingSync keeps each microphone's natural timing. If you mix two mics on the same voice and it sounds hollow, nudge one by a few milliseconds or use only the closest mic.
+- Clips with no shared sound are placed by their device's clock, exactly as in the XML (see the report).
 
 ## 5. The report
 

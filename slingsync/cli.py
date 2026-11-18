@@ -26,6 +26,12 @@ def main(argv=None):
                     help="keep channels that are silent in every file of a device")
     ap.add_argument("--skip-silent-clips", action="store_true",
                     help="also leave out channels that are silent in individual files")
+    ap.add_argument("--audio", action="store_true",
+                    help="also write aligned WAV files (one per device channel) for any audio "
+                         "editor, e.g. podcasts; no Premiere needed")
+    ap.add_argument("--audio-dir", help="folder for the WAV files (default <project>/<name>_audio)")
+    ap.add_argument("--audio-rate", type=int, help="sample rate of the WAV files (default: most "
+                    "common rate in the project)")
     ap.add_argument("--min-votes", type=int, default=12, help="match strictness (default 12)")
     ap.add_argument("--workers", type=int, help="files analysed at once")
     ap.add_argument("-v", "--verbose", action="store_true",
@@ -55,6 +61,7 @@ def main(argv=None):
                   skip_silent_clips=a.skip_silent_clips, silence_db=a.silence_db,
                   flat_db=a.flat_db, min_votes=a.min_votes, workers=a.workers,
                   output=a.output, name=a.name, clear_cache=a.clear_cache, progress=progress,
+                  stems=a.audio, stems_dir=a.audio_dir, stems_rate=a.audio_rate,
                   log=(lambda m: print(m, flush=True)) if a.verbose else None)
     except (ValueError, Cancelled) as e:
         sys.exit(str(e) or "Cancelled")
@@ -62,6 +69,8 @@ def main(argv=None):
     print("Summary: " + ", ".join(f"{v} {k}" for k, v in sorted(res["counts"].items())))
     print(f"XML:    {res['xml']}")
     print(f"Report: {res['report']}")
+    if res.get("stems"):
+        print(f"Audio:  {len(res['stems'])} WAV files in {res['stems_dir']}")
 
 
 if __name__ == "__main__":

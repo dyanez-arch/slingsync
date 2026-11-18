@@ -4,6 +4,12 @@ Every build that reaches anyone gets its own version number and section here. Te
 
 What was tested with each build is in the [testing log](docs/testing.md).
 
+## 1.2.0b1 (in development)
+
+### Added
+- **Audio only / podcasts:** *Also export audio files* (app) or `--audio` (command line) writes one aligned 24-bit WAV per device channel to `<project>_audio`. Drop them all at 0:00 in any audio editor and they're in sync to the sample. No Premiere or video needed. Tested on a 5-hour, 111-clip shoot: 7 files, about 3 minutes, under 1 GB of memory. Placement is identical to the XML but not rounded to frames.
+- App: **Show Audio Files** button in the results; the quick guide explains audio-only use.
+
 ## 1.1.0 (2026-11-17)
 
 The first release tested on real documentary footage and checked in Premiere Pro: four shoots, from a 79-minute interview to a 131-clip day with five devices (see the [testing log](docs/testing.md)). It includes everything in the test builds below.

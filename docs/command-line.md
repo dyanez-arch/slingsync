@@ -28,6 +28,9 @@ slingsync PROJECT [options]
 | `--flat-db DB` | `3` | A channel whose loudness range (95th minus 10th percentile) is less than this counts as dead or hiss-only, unless every live channel in the file is like that (steady ambience), in which case they're used |
 | `--keep-silent` | off | Keep channels on the timeline even when they're silent in every file of a device |
 | `--skip-silent-clips` | off | Also leave out channels that are silent in individual files |
+| `--audio` | off | Also write aligned 24-bit WAV files, one per device channel, for any audio editor. See [Audio only](user-guide.md#4b-audio-only-podcasts-music-interviews-no-premiere-needed) |
+| `--audio-dir DIR` | `<project>/<name>_audio` | Where to write the WAV files |
+| `--audio-rate N` | most common rate in the project | Sample rate of the WAV files, e.g. `48000` |
 | `--min-votes N` | `12` | Match strictness. Higher means fewer but more certain matches |
 | `--workers N` | CPU count − 1, max 6 | Files analysed at once |
 | `-v`, `--verbose` | off | Print details for every file (channels, levels, date), every match (offset, votes, drift) and the final placement. Useful when something didn't sync |
@@ -45,6 +48,9 @@ slingsync "Interview Day 1" --fps 25 --ref-channel "Zoom F6=3"
 
 # Two reference channels, custom output
 slingsync "Day 2" --ref-channel "Zoom F6=3" --ref-channel "CamB=1" -o ~/Desktop/day2.xml
+
+# Podcast: just aligned WAV files for an audio editor
+slingsync "Podcast Ep 12" --audio
 
 # Noisy location: be stricter about matches
 slingsync "Day 3" --min-votes 20
@@ -72,6 +78,6 @@ res = run("/path/to/project", fps=25, ref_channels={"Zoom F6": 3},
 print(res["xml"], res["counts"], res["need_check"])
 ```
 
-`run()` accepts the same settings as the CLI (`keep_silent`, `skip_silent_clips`, `silence_db`, `flat_db`, `min_votes`, `workers`, `output`, `name`, `clear_cache`) plus `log` (a function that receives the verbose lines) and `cancel`, a `threading.Event` that stops the run by raising `slingsync.engine.Cancelled`.
+`run()` accepts the same settings as the CLI (`keep_silent`, `skip_silent_clips`, `silence_db`, `flat_db`, `min_votes`, `workers`, `output`, `name`, `clear_cache`, and `stems`, `stems_dir`, `stems_rate` for the WAV export) plus `log` (a function that receives the verbose lines) and `cancel`, a `threading.Event` that stops the run by raising `slingsync.engine.Cancelled`.
 
-It returns a dict with `xml`, `report`, `counts`, `need_check` (status, file, position, note for every clip not synced by sound), `files`, `skipped`, `devices`, `video_tracks`, `audio_tracks` and `fps`.
+It returns a dict with `xml`, `report`, `counts`, `need_check` (status, file, position, note for every clip not synced by sound), `files`, `skipped`, `devices`, `video_tracks`, `audio_tracks`, `fps`, and `stems` / `stems_dir` (the WAV files written, if any).

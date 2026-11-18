@@ -1,6 +1,6 @@
 # SlingSync
 
-**Free multicam sync for Premiere Pro, by sound.**
+**Free multicam sync for Premiere Pro, by sound. Also exports aligned audio files for podcasts and any audio editor.**
 
 Drop in a folder of clips from any number of cameras and audio recorders, and SlingSync lines them all up by matching their audio, then hands you an XML that opens in Premiere as a ready-synced sequence. It's built for real documentary shoots: hundreds of clips, recorders stopping and starting, cameras rolling in bursts, multichannel WAVs with dead channels.
 
@@ -60,6 +60,7 @@ Anything that couldn't be synced by sound is marked orange (placed by its device
 - **Loose files.** No subfolders? SlingSync guesses the devices from file names (e.g. `A005C002…` → Cam A).
 - **False matches.** A weak sound match that contradicts what the device clocks say is dropped.
 - **Clock drift.** Long takes are lined up at the middle, and any drift between devices is measured and reported.
+- **Audio only.** Tick **Also export audio files** and SlingSync also writes one aligned WAV per microphone. Drop them at the start of any audio editor (Audacity, Reaper, Logic, Descript…) and they're in sync. No Premiere or video needed, which suits podcasts, music and interviews.
 - **Re-runs.** Audio analysis is saved in a hidden `.slingsync_cache` folder inside the project, so changing options and syncing again is fast. Delete that folder when you're done with the project.
 
 **Sync using** (per device) lets you force syncing to a single channel, such as the ambient mic. The default, which mixes all live channels, is usually the most reliable.
@@ -81,7 +82,7 @@ Options include `--verbose` (details for every file and match), `--fps 25`, `--r
 3. Each match is refined to sample accuracy with GCC-PHAT cross-correlation across the overlap. Slow clock drift on long takes is measured.
 4. All matches are solved together with least squares, so small errors don't pile up along chains of clips.
 5. Clips and scenes that share no sound with the rest are positioned from each device's clock (recorder time, timecode or file date). Each clock is checked against the clips that did sync, and clock changes during the shoot are allowed.
-6. A Final Cut Pro 7 XML is written, which Premiere imports, along with a plain-text report.
+6. A Final Cut Pro 7 XML is written, which Premiere imports, along with a plain-text report and, optionally, aligned WAV files (sample-accurate).
 
 Details: [how it works](docs/how-it-works.md).
 

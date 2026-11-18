@@ -73,6 +73,13 @@ after the end of the timeline.</td></tr>
 <p>The report (<b>Open Report</b>) lists every clip to check, how reliable each device's clock
 was, clock drift on long takes, and silent channels.</p>
 
+<h3>Audio only (podcasts, music, interviews)</h3>
+<p>Tick <b>Also export audio files</b> before syncing. SlingSync writes one WAV file per
+microphone/channel into a <i>…_audio</i> folder. Drop them all at the very start of the timeline
+in any audio editor (Audacity, Reaper, Logic, Descript, GarageBand…) and they are in sync, to
+the audio sample. No Premiere or video needed: a folder of recorder and phone audio works.
+Long shooting days make big files (about 0.5 GB per hour per channel).</p>
+
 <h3>5. Next shooting day</h3>
 <p>Click <b>New Sync</b> (⌘N) or <b>Sync Another Folder</b>, or just drop another folder on
 the window.</p>
@@ -296,7 +303,12 @@ class MainWindow(QMainWindow):
         self.drop_dead.setChecked(True)
         self.drop_each = QCheckBox("Also leave out channels that are silent in individual clips")
         self.fresh = QCheckBox("Re-analyse everything (ignore saved analysis)")
-        for w in (self.drop_dead, self.drop_each, self.fresh):
+        self.stems = QCheckBox("Also export audio files: one aligned WAV per microphone, for any "
+                               "audio editor (podcasts, music, no Premiere needed)")
+        self.stems.setToolTip("Written to a '…_audio' folder in the project. Import them all at "
+                              "the start of the timeline in Audacity, Reaper, Logic, Descript, "
+                              "GarageBand… and they line up. Long shooting days make big files.")
+        for w in (self.drop_dead, self.drop_each, self.fresh, self.stems):
             lay.addWidget(w)
 
         row = QHBoxLayout()
@@ -338,13 +350,18 @@ class MainWindow(QMainWindow):
         self.reveal_btn.clicked.connect(lambda: reveal(self.result["xml"]))
         self.report_btn = QPushButton("Open Report")
         self.report_btn.clicked.connect(lambda: open_file(self.result["report"]))
+        self.stems_btn = QPushButton("Show Audio Files")
+        self.stems_btn.clicked.connect(lambda: reveal(self.result["stems"][0]))
         self.again_btn = QPushButton("Sync Another Folder")
         self.again_btn.clicked.connect(self.reset)
         btns.addWidget(self.reveal_btn)
         btns.addWidget(self.report_btn)
+        btns.addWidget(self.stems_btn)
         btns.addStretch()
         btns.addWidget(self.again_btn)
-        hint = QLabel("In Premiere: File → Import… and choose the XML.")
+        hint = QLabel("In Premiere: File → Import… and choose the XML. Audio files: drop them all "
+                      "at the start of your audio editor's timeline.")
+        hint.setWordWrap(True)
         hint.setObjectName("muted")
         rl.addWidget(self.summary)
         rl.addLayout(btns)
@@ -510,7 +527,8 @@ class MainWindow(QMainWindow):
                       fps=FPS_CHOICES[self.fps.currentIndex()][1],
                       keep_silent=not self.drop_dead.isChecked(),
                       skip_silent_clips=self.drop_each.isChecked(),
-                      clear_cache=self.fresh.isChecked())
+                      clear_cache=self.fresh.isChecked(),
+                      stems=self.stems.isChecked())
         self.worker = SyncWorker(kwargs)
         self.worker.progress.connect(self.on_progress)
         self.worker.done.connect(self.on_done)
@@ -548,7 +566,9 @@ class MainWindow(QMainWindow):
         self.summary.setText(
             f"<b>Done.</b> {synced} of {res['files']} clips synced by sound · "
             f"{res['video_tracks']} video and {res['audio_tracks']} audio tracks at "
-            f"{res['fps']:.3f} fps.")
+            f"{res['fps']:.3f} fps."
+            + (f" · {len(res['stems'])} audio files." if res.get("stems") else ""))
+        self.stems_btn.setVisible(bool(res.get("stems")))
         need = res["need_check"]
         self.check_list.clear()
         if need:

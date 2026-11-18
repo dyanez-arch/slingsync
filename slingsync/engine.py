@@ -229,14 +229,14 @@ def probe(path):
     return out
 
 
-def _blocks(path, chunk, cancel=None):
-    """Yield (n, channels) float32 blocks at SR Hz, all audio streams side by side."""
+def _blocks(path, chunk, cancel=None, rate=SR):
+    """Yield (n, channels) float32 blocks at `rate` Hz, all audio streams side by side."""
     c = av.open(path)
     try:
         streams = list(c.streams.audio)
         if not streams:
             return
-        res = [av.AudioResampler(format="fltp", layout=s.layout, rate=SR) for s in streams]
+        res = [av.AudioResampler(format="fltp", layout=s.layout, rate=rate) for s in streams]
         idx = {s.index: k for k, s in enumerate(streams)}
         bufs = [[] for _ in streams]
         lens = [0] * len(streams)
@@ -889,6 +889,119 @@ def build_xml(clips, devices, seq_name, seq_fps, keep_silent, skip_silent_clips)
     return "\n".join(out), lane_info, len(video_tracks), len(audio_tracks)
 
 
+# ---- audio stems (for any audio editor, no Premiere needed) ------------------
+WAV_LIMIT = 4 * 1024 ** 3 - 1024          # plain WAV files can't exceed 4 GB
+
+
+class _Wav24:
+    """Minimal streaming 24-bit mono WAV writer (header patched on close)."""
+
+    def __init__(self, path, rate):
+        import wave
+        self.w = wave.open(path, "wb")
+        self.w.setnchannels(1)
+        self.w.setsampwidth(3)
+        self.w.setframerate(rate)
+        self.n = 0
+
+    def write(self, x):
+        x = np.clip(np.nan_to_num(x), -1.0, 1.0 - 1.0 / 8388608)
+        i = np.round(x * 8388608).astype("<i4")
+        self.w.writeframesraw(i.view(np.uint8).reshape(-1, 4)[:, :3].tobytes())
+        self.n += len(x)
+
+    def silence(self, n):
+        while n > 0:
+            k = min(n, 1 << 20)
+            self.write(np.zeros(k, np.float32))
+            n -= k
+
+    def close(self):
+        self.w.close()
+
+
+def _safe(name):
+    return "".join(ch if ch.isalnum() or ch in " ._-()" else "_" for ch in name).strip() or "device"
+
+
+def export_stems(clips, devices, lane_info, out_dir, rate=None, progress=None, cancel=None):
+    """Write one aligned mono 24-bit WAV per device channel (and per lane when a device's
+    clips overlap). Every file starts at the timeline's zero and all have the same length,
+    so they line up when placed at the start of any audio editor's timeline. Positions are
+    sample-accurate (the Premiere XML is rounded to whole frames). Returns the file list."""
+    say = progress or (lambda f, m: None)
+    with_audio = [c for c in clips if c["nch"]]
+    if not with_audio:
+        return []
+    if rate is None:                                   # most common source rate
+        rates = [c["samplerate"] for c in with_audio]
+        rate = max(set(rates), key=rates.count)
+    total = int(np.ceil(max(c["start"] + c["duration"] for c in with_audio) * rate))
+    if total * 3 > WAV_LIMIT:
+        raise ValueError(
+            f"The synced timeline is {total / rate / 3600:.1f} hours long, which makes each "
+            "audio file larger than the 4 GB WAV limit. Sync fewer days at once, or use the "
+            "Premiere XML instead.")
+    chans_of = {dname: chans for dname, _, chans in lane_info}
+    os.makedirs(out_dir, exist_ok=True)
+    jobs = []                                          # (device name, lane, [clips])
+    for d, dname in enumerate(devices):
+        dc = [c for c in with_audio if c["dev"] == d]
+        for lane in sorted({c.get("lane", 0) for c in dc}):
+            lc = sorted((c for c in dc if c.get("lane", 0) == lane), key=lambda c: c["start"])
+            if lc and chans_of.get(dname):
+                jobs.append((dname, lane, lc))
+    n_lanes = {}
+    for dname, lane, _ in jobs:
+        n_lanes[dname] = n_lanes.get(dname, 0) + 1
+    files, done, todo = [], 0, sum(len(lc) for _, _, lc in jobs)
+    for dname, lane, lc in jobs:
+        chans = chans_of[dname]
+        suffix = f" (lane {lane + 1})" if n_lanes[dname] > 1 else ""
+        names = [os.path.join(out_dir, f"{_safe(dname)}{suffix} - ch{ch}.wav") for ch in chans]
+        writers = [_Wav24(p, rate) for p in names]
+        try:
+            pos = 0
+            for c in lc:
+                _check(cancel)
+                done += 1
+                say(done / max(1, todo), f"Writing audio files ({done}/{todo})")
+                start = int(round(c["start"] * rate))
+                skip = max(0, pos - start)             # tiny overlap: trim this clip's head
+                if start > pos:
+                    for w in writers:
+                        w.silence(start - pos)
+                    pos = start
+                written = 0
+                want = int(round(c["duration"] * rate)) - skip
+                try:
+                    for blk in _blocks(c["path"], rate * 10, cancel, rate):
+                        if skip:
+                            cut = min(skip, len(blk))
+                            blk, skip = blk[cut:], skip - cut
+                        blk = blk[:max(0, want - written)]
+                        if not len(blk):
+                            continue
+                        for w, ch in zip(writers, chans):
+                            w.write(blk[:, ch - 1] if ch <= blk.shape[1] else np.zeros(len(blk), np.float32))
+                        written += len(blk)
+                except Cancelled:
+                    raise
+                except Exception:
+                    pass                               # unreadable audio: leave silence
+                if written < want:                     # keep later clips in place
+                    for w in writers:
+                        w.silence(want - written)
+                pos += want
+            for w in writers:                          # pad to a common length
+                w.silence(max(0, total - pos))
+        finally:
+            for w in writers:
+                w.close()
+        files += names
+    return files
+
+
 # ---- main ------------------------------------------------------------------
 def tc(s):
     s = max(0, s)
@@ -983,14 +1096,20 @@ def device_channels(files, sample=3):
 
 def run(project, ref_channels=None, fps=None, keep_silent=False, skip_silent_clips=False,
         silence_db=-60.0, flat_db=3.0, min_votes=12, workers=None, output=None, name=None,
-        clear_cache=False, progress=None, cancel=None, log=None):
+        clear_cache=False, progress=None, cancel=None, log=None, stems=False, stems_dir=None,
+        stems_rate=None):
     """Sync a project folder (one subfolder per device). Returns a result dict.
 
     progress(fraction 0..1, message) is called along the way; set the threading.Event
     `cancel` to stop early (raises Cancelled). log(text), if given, receives detailed
-    diagnostics (per-file analysis, every match, placement)."""
+    diagnostics (per-file analysis, every match, placement). With stems=True, aligned
+    WAV files for any audio editor are also written (to stems_dir, default
+    <project>/<name>_audio)."""
     say = progress or (lambda f, m: None)
     log = log or (lambda s: None)
+    if stems:                                    # leave the last part of the bar for writing audio
+        outer = say
+        say = lambda f, m: outer(0.85 * f, m)
     ref_channels = ref_channels or {}
     project = os.path.abspath(project)
     if not os.path.isdir(project):
@@ -1124,19 +1243,27 @@ def run(project, ref_channels=None, fps=None, keep_silent=False, skip_silent_cli
     out = output or os.path.join(project, f"{name}_synced.xml")
     with open(out, "w", encoding="utf-8") as fh:
         fh.write(xml)
+    stem_files, stems_dir = [], stems_dir or os.path.join(project, f"{name}_audio")
+    if stems:
+        stem_files = export_stems(clips, devices, lane_info, stems_dir, stems_rate,
+                                  progress=lambda f, m: outer(0.85 + 0.15 * f, m), cancel=cancel)
+        for f in stem_files:
+            log(f"  audio file: {f}")
     report_path = os.path.join(project, "SlingSync_report.txt")
     counts = write_report(report_path, name, seq_fps, nv, na, clips, lane_info,
-                          conflicts, skipped, project, edges, clock, devices)
-    say(1.0, "Done")
+                          conflicts, skipped, project, edges, clock, devices,
+                          stems=(stems_dir, stem_files) if stems else None)
+    (outer if stems else say)(1.0, "Done")
     need = [{"status": c["status"], "file": c["rel"], "at": tc(c["start"]), "note": c["note"]}
             for c in sorted(clips, key=lambda c: c["start"]) if c["status"] != "synced"]
     return {"xml": out, "report": report_path, "counts": counts, "need_check": need,
             "files": len(clips), "skipped": skipped, "devices": devices,
-            "video_tracks": nv, "audio_tracks": na, "fps": seq_fps}
+            "video_tracks": nv, "audio_tracks": na, "fps": seq_fps,
+            "stems": stem_files, "stems_dir": stems_dir if stems else None}
 
 
 def write_report(path, name, seq_fps, nv, na, clips, lane_info, conflicts, skipped, proj, edges=(),
-                 clock=None, devices=()):
+                 clock=None, devices=(), stems=None):
     counts = {}
     for c in clips:
         counts[c["status"]] = counts.get(c["status"], 0) + 1
@@ -1144,6 +1271,12 @@ def write_report(path, name, seq_fps, nv, na, clips, lane_info, conflicts, skipp
          f"Sequence: {seq_fps:.3f} fps, {nv} video tracks, {na} audio tracks", ""]
     R.append("Summary: " + ", ".join(f"{v} {k}" for k, v in sorted(counts.items())))
     R.append("")
+    if stems:
+        sdir, sfiles = stems
+        R.append(f"Audio files: {len(sfiles)} aligned WAV files in {sdir}")
+        R.append("  Import them all at the very start (00:00:00) of any audio editor's timeline;")
+        R.append("  they line up to the audio sample. One file per device channel.")
+        R.append("")
     R.append("Tracks per device:")
     for dname, nl, chans in lane_info:
         R.append(f"  {dname}: {nl} lane(s), channels kept {chans or 'none'}"
