@@ -4,7 +4,9 @@ Every build that reaches anyone gets its own version number and section here. Te
 
 What was tested with each build is in the [testing log](docs/testing.md).
 
-## 1.2.0b1 (in development)
+## 1.2.0b1 (test build, 2026-11-17)
+
+Built by GitHub Actions run [44219903752](https://github.com/dyanez-arch/slingsync/actions/runs/44219903752) from commit `0e4f9b3`.
 
 ### Added
 - **Audio only / podcasts:** *Also export audio files* (app) or `--audio` (command line) writes one aligned 24-bit WAV per device channel to `<project>_audio`. Drop them all at 0:00 in any audio editor and they're in sync to the sample. No Premiere or video needed. Tested on a 5-hour, 111-clip shoot: 7 files, about 3 minutes, under 1 GB of memory. Placement is identical to the XML but not rounded to frames.
