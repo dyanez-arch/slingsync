@@ -195,9 +195,9 @@ document.getElementById("syncFolder").addEventListener("click", () => guarded(as
 }));
 
 // ---- Compact Timeline: close every gap where no track has a clip, in a copy of the open sequence ----
-// Premiere's script objects stop working after any edit, and objects from an older project
-// handle stop working once a new handle is fetched. So every step gets a fresh project
-// handle, looks up what it needs from that same handle, and uses it straight away.
+// Premiere's script objects stop working after any edit, and actions only work when created
+// inside project.lockedAccess + executeTransaction. So every step gets a fresh project handle,
+// looks up what it needs from it, and creates its actions inside the lock and transaction.
 const TICKS = 254016000000;                    // Premiere ticks per second
 const ticksOf = (t) => Number(t.ticksNumber !== undefined ? t.ticksNumber : t.ticks);
 const activeProject = () => ppro.Project.getActiveProject();
@@ -207,8 +207,16 @@ const activeProject = () => ppro.Project.getActiveProject();
 async function edit(lookup, make, undoName) {
   const P = await activeProject();
   const objs = await lookup(P);
-  let ok = false;
-  P.executeTransaction((ca) => { for (const a of make(objs)) ca.addAction(a); ok = true; }, undoName);
+  // Since Premiere 26.3, actions must be created inside lockedAccess + executeTransaction,
+  // or Premiere says "The script object is no longer valid".
+  let ok = false, err = null;
+  const run = () => {
+    P.executeTransaction((ca) => {
+      try { for (const a of make(objs)) ca.addAction(a); ok = true; } catch (e) { err = e; }
+    }, undoName);
+  };
+  if (typeof P.lockedAccess === "function") P.lockedAccess(run); else run();
+  if (err) throw err;
   return ok;
 }
 async function sequenceById(P, guid) {
