@@ -169,5 +169,24 @@ document.getElementById("fromFolder").addEventListener("click", () => guarded(as
   }
 }));
 
+// ---- About ----
+// Donation page: set this once the page exists (e.g. "https://ko-fi.com/<name>"); the line
+// stays hidden while it's empty. Keep in sync with SUPPORT_URL in slingsync/gui.py.
+const SUPPORT_URL = "";
+try {
+  document.getElementById("aboutVersion").textContent = "version " + require("uxp").versions.plugin;
+} catch (e) { /* version unknown */ }
+if (SUPPORT_URL) {
+  document.getElementById("supportLink").setAttribute("href", SUPPORT_URL);
+  document.getElementById("supportLine").hidden = false;
+}
+// Links open in the user's web browser (panels have no browser of their own).
+for (const a of document.querySelectorAll("a.ext")) {
+  a.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    shell.openExternal(a.getAttribute("href"), "Open the SlingSync web page in your browser");
+  });
+}
+
 showBar(null);
 say("Ready.");

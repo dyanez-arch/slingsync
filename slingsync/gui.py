@@ -25,6 +25,10 @@ ICON = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources", "ic
 REPO = "https://github.com/dyanez-arch/slingsync"
 DOCS = REPO + "/blob/main/docs/"
 COPYRIGHT = "© 2026 Daniel Juan Yanez Villagomez"
+CREATOR_URL = "https://github.com/dyanez-arch"
+# Donation page (e.g. "https://ko-fi.com/<name>"); the About line is hidden while empty.
+# Keep in sync with SUPPORT_URL in premiere-panel/index.js.
+SUPPORT_URL = ""
 
 
 STATUS_FILE = ".slingsync_status.json"
@@ -452,9 +456,13 @@ class MainWindow(QMainWindow):
         name.setAlignment(Qt.AlignCenter)
         body = QLabel(
             "Free multicam sync for Premiere Pro, by sound.<br><br>"
+            f'Made by <a href="{CREATOR_URL}">Daniel Yanez</a>, documentary editor.<br>'
             "Free and open source under the MIT License.<br>"
             f"{COPYRIGHT}<br><br>"
-            f'<a href="{REPO}">{REPO.replace("https://", "")}</a>')
+            f'<a href="{REPO}">{REPO.replace("https://", "")}</a><br>'
+            f'<a href="{REPO}/issues">Report a problem or suggest a feature</a>'
+            + (f'<br><br>If SlingSync saves you time, you can '
+               f'<a href="{SUPPORT_URL}">support its development</a>.' if SUPPORT_URL else ""))
         body.setAlignment(Qt.AlignCenter)
         body.setOpenExternalLinks(True)
         body.setWordWrap(True)

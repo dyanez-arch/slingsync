@@ -2,6 +2,15 @@
 
 **Free multicam sync for Premiere Pro, by sound. Also exports aligned audio files for podcasts and any audio editor.**
 
+SlingSync comes in two forms:
+
+| | |
+|---|---|
+| **Desktop app** (Mac) | Released. Works with any editor that imports FCP7 XML, or with no video at all (audio-only export). [Download](../../releases) |
+| **Premiere Pro panel** (Premiere 2027+) | In development. Syncs inside Premiere and puts the sequence straight into your project. [About the panel](premiere-panel/README.md) |
+
+They do the same job and aim for identical results, but are built differently: Premiere plugins can only run JavaScript, so the panel carries its own JavaScript version of the engine. See [Desktop app and Premiere panel](docs/desktop-app-and-premiere-panel.md) for how they relate and which to use. The rest of this page is about the **desktop app**.
+
 Drop in a folder of clips from any number of cameras and audio recorders, and SlingSync lines them all up by matching their audio, then hands you an XML that opens in Premiere as a ready-synced sequence. It's built for real documentary shoots: hundreds of clips, recorders stopping and starting, cameras rolling in bursts, multichannel WAVs with dead channels.
 
 **Timecode:** syncing by sound needs no timecode, slate or clap. Every clip that shares sound with another device is lined up from its audio alone. Clips that share *no* sound (cutaways, drone shots, a camera rolling while the recorder was off) can't be synced by sound. SlingSync places those using whatever clock information the files carry: recorder time, camera timecode if there is any, or file dates. Timecode makes those placements more reliable, but isn't required.
@@ -67,7 +76,7 @@ Anything that couldn't be synced by sound is marked orange (placed by its device
 
 ## Premiere Pro panel (in development)
 
-A SlingSync panel for **Premiere Pro 2027** is being built in [`premiere-panel/`](premiere-panel/README.md). Step 1, importing SlingSync results straight into the open project, is ready for testing.
+A SlingSync panel for **Premiere Pro 2027** is being built in [`premiere-panel/`](premiere-panel/README.md). It will sync without leaving Premiere and without the desktop app. Read [Desktop app and Premiere panel](docs/desktop-app-and-premiere-panel.md) for the differences.
 
 ## Command line
 
@@ -108,6 +117,19 @@ bash scripts/build_mac.sh
 
 This produces `dist/SlingSync.app` and a `.dmg`. Pushing a tag such as `v1.1.0` makes GitHub Actions build the DMG and attach it to a new release automatically. See [development](docs/development.md).
 
+## Repository layout
+
+| Folder | |
+|---|---|
+| [`slingsync/`](slingsync) | Desktop app and command line (Python): engine, GUI, CLI |
+| [`premiere-panel/`](premiere-panel/README.md) | Premiere Pro panel (JavaScript + WebAssembly) |
+| [`docs/`](docs/README.md) | Guides for both |
+| [`scripts/`](scripts) | Build scripts (Mac app, panel decoder) and the synthetic test project |
+
+## Credits and support
+
+Made by [Daniel Yanez](https://github.com/dyanez-arch), a documentary editor, to stop syncing multicam shoots by hand. SlingSync is free. Problems and ideas are welcome in [Issues](../../issues).
+
 ## License
 
-MIT
+MIT for SlingSync's own code. The desktop app bundles FFmpeg through PyAV, and the panel includes FFmpeg compiled to WebAssembly; FFmpeg is LGPL 2.1+ (see [`premiere-panel/wasm/`](premiere-panel/wasm/README.md)).

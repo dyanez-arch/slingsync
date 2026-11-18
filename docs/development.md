@@ -2,7 +2,10 @@
 
 ## Code layout
 
+The repository holds two tools that share one engine design (see [Desktop app and Premiere panel](desktop-app-and-premiere-panel.md)):
+
 ```
+── Desktop app + command line (Python) ──
 app.py                     entry point for the bundled Mac app (calls gui.main)
 slingsync/
     __init__.py            __version__ (single source of truth for the version)
@@ -14,7 +17,20 @@ slingsync/
 scripts/build_mac.sh       builds dist/SlingSync.app and a .dmg
 scripts/make_test_project.py   synthetic project with known answers (regression test)
 SlingSync.spec             PyInstaller spec
-.github/workflows/build-mac.yml   CI build and release
+.github/workflows/build-mac.yml   CI build and release (desktop app)
+
+── Premiere Pro panel (JavaScript + WebAssembly, UXP) ──
+premiere-panel/
+    manifest.json          plugin id, version, Premiere 27.0+, permissions
+    index.html, index.js   the panel (sync, import, About)
+    lab.js                 temporary feasibility tests (to be removed)
+    wasm/ssdec.c           FFmpeg glue: open a file, list streams/tags, decode audio at any rate
+    wasm/ssdec.js, .wasm   built decoder (scripts/build_panel_wasm.sh)
+scripts/build_panel_wasm.sh    builds FFmpeg 7.1.1 (audio only) + ssdec.c with Emscripten
+
+── Shared ──
+docs/                      guides for both tools
+CHANGELOG.md               app versions and panel versions
 ```
 
 The GUI and CLI are thin. Everything else is in `engine.py`, documented in [How it works](how-it-works.md). Main entry points, in pipeline order:

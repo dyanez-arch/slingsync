@@ -1,40 +1,58 @@
-# SlingSync panel for Premiere Pro 2027 (prototype)
+# SlingSync panel for Premiere Pro 2027 (in development)
 
-A panel inside Premiere Pro that brings SlingSync results straight into the open project. It's a **work in progress**, built and tested one step at a time:
+A panel inside Premiere Pro that syncs a shoot by sound and puts the synced sequence straight into the open project. It's the Premiere-native counterpart of the [SlingSync desktop app](../README.md). For how the two relate and why they're built differently, see [Desktop app and Premiere panel](../docs/desktop-app-and-premiere-panel.md).
+
+Requires **Premiere Pro 2027 (27.0) or later** (Adobe's UXP plugin system).
+
+## Status
 
 | Step | What it does | Status |
 |---|---|---|
-| 1 | Import a SlingSync XML (pick a shoot folder or the XML) into the open project, and check that the sequence really appeared | Panel loads in Premiere 2027 ✅; import itself not yet tested |
-| 2 | **Sync Shoot Folder…**: pick a folder, the SlingSync app syncs it, the panel shows progress and imports the sequence | Built (panel 0.2 + app 1.2.0b2); app side tested offscreen, not yet in Premiere |
-| 3 | Sync from Premiere bins instead of folders | Planned |
+| 1 | Import a SlingSync XML (pick a shoot folder or the XML) and check the sequence really appeared | Panel loads in Premiere 2027 ✅; import itself not yet tested |
+| 2 | **Sync Shoot Folder…** through the desktop app (temporary bridge, see below) | Built (panel 0.2+, app 1.2.0b2); not yet tested in Premiere |
+| 3 | **Panel engine:** syncing inside Premiere with no app needed | In progress (see below) |
+| 4 | Sync from Premiere bins instead of folders | Planned |
+| — | **About** (version, creator, GitHub, report a problem) | Added in 0.4, not yet tested in Premiere |
 
-**Direction (2026-11-17):** the panel should work on its own, without the SlingSync app, by running a JavaScript version of the sync engine inside Premiere. The standalone app stays for people without Premiere. Panel 0.3 adds temporary **Developer tests** to check this is feasible in Premiere: reading WAV files directly, converting other formats' audio with Media Encoder (`EncoderManager.encodeFile` with Premiere's `WAV_Mono_16bit_16kHz.epr` preset), and JavaScript speed for the analysis. Steps 2 and 3 will be rebuilt on the JavaScript engine.
+### Panel engine (step 3)
 
-Requires **Premiere Pro 2027 (27.0) or later**. It uses Adobe's UXP plugin system, which replaces CEP. The SlingSync app does the actual syncing, so the panel stays small.
+The panel will run its own copy of the sync engine: the Python engine rewritten in JavaScript, with FFmpeg compiled to WebAssembly for reading files ([`wasm/`](wasm/README.md)). Feasibility tests run in Premiere Pro 2027 on 2026-11-18 (the **Developer tests** section of the panel):
+
+| Test | Result |
+|---|---|
+| Read a recorder WAV directly | ✅ 3.8 h of audio (2 GB) in 17.5 s |
+| Convert a clip with Media Encoder | ✅ works but slow (3 min clip in 79 s): only a last-resort fallback |
+| JavaScript speed (spectrogram) | ✅ about 5 s per hour of audio |
+| Built-in audio decoder (Web Audio) | ❌ not available in UXP |
+| WebAssembly | ✅ works (synchronous loading; asynchronous loading hung) |
+
+Next: wire the decoder into the panel, port the analysis, matching, placement and XML, and check results against the desktop app on real shoots.
 
 ## Try it (development install)
 
 1. Install **Adobe UXP Developer Tool** from the Creative Cloud app (*Apps → search "UXP Developer Tool"*).
-2. Open Premiere Pro 2027 with a project.
-3. In UXP Developer Tool: **Add Plugin** → choose `premiere-panel/manifest.json` from this repository → in its row, click **⋯ → Load**.
-4. In Premiere: **Window → UXP Plugins → SlingSync** (or **Window → Extensions**, depending on version).
-5. Install the SlingSync app **1.2.0b2 or later** in Applications (earlier versions don't accept requests from the panel).
-6. In the panel, click **Sync Shoot Folder…** and pick a shoot folder. The first time, macOS asks whether Premiere may open SlingSync: allow it (you can tell it to remember). The SlingSync app opens and syncs; the panel shows progress, then imports the synced sequence into the project.
-7. For a folder already synced, use **Import from Shoot Folder…** instead.
+2. In Premiere: **Settings → Plugins → Enable developer mode**, then restart Premiere and open a project.
+3. In UXP Developer Tool: **Add Plugin** → choose `premiere-panel/manifest.json` from this repository → in its row, click **⋯ → Load**. After changes, use **⋯ → Reload**.
+4. In Premiere: **Window → UXP Plugins → SlingSync**.
+5. Until the panel engine is ready, **Sync Shoot Folder…** needs the SlingSync desktop app **1.2.0b2 or later** in Applications. The first time, macOS asks whether Premiere may open SlingSync: allow it. For a folder already synced, use **Import from Shoot Folder…**.
 
-If UXP Developer Tool says *"No applications are connected to the service"*: in Premiere, **Settings → Plugins → Enable developer mode**, restart Premiere, and keep it open (with a project) while you click **Load**.
+If UXP Developer Tool says *"No applications are connected to the service"*, developer mode isn't on yet (step 2), or Premiere isn't open.
 
 ## Files
 
-- `manifest.json`: plugin id, Premiere 27.0+, panel size, permission to read files the user picks.
-- `index.html`, `index.js`: the panel. Uses `premierepro` (`Project.getActiveProject`, `importFiles`, `getSequences`) and `uxp.storage.localFileSystem`.
+- `manifest.json`: plugin id, version, Premiere 27.0+, permissions (read files, open `slingsync://` and web links).
+- `index.html`, `index.js`: the panel. Uses `premierepro` (`Project.getActiveProject`, `importFiles`, `getSequences`), `uxp.storage.localFileSystem`, `uxp.shell`.
+- `lab.js`: temporary feasibility tests; removed once the panel engine works.
+- `wasm/`: FFmpeg audio decoder for the panel engine.
 - `icons/`: generated from `slingsync/resources/icon.png`.
 
-## How the panel starts a sync
+## The temporary bridge to the desktop app
 
-UXP panels can't run programs directly, but they can open a link with the user's permission (Adobe's [Launch External Processes](https://developer.adobe.com/premiere-pro/uxp/resources/recipes/external-process) recipe). So:
+UXP panels can't run programs, but they can open a link with the user's permission. So for now:
 
-1. The SlingSync app registers the `slingsync://` link type (`CFBundleURLTypes` in `SlingSync.spec`).
-2. The panel opens `slingsync://sync?folder=<path>&id=<request id>&audio=0|1` with `shell.openExternal` (manifest permission `launchProcess.schemes: ["slingsync"]`). macOS launches or activates the app, which loads the folder and syncs it with default options.
+1. The desktop app registers the `slingsync://` link type (`CFBundleURLTypes` in `SlingSync.spec`).
+2. The panel opens `slingsync://sync?folder=<path>&id=<request id>&audio=0|1`. macOS launches the app, which syncs the folder with default options.
 3. The app writes `<folder>/.slingsync_status.json` as it goes: `{id, state: scanning|syncing|done|error|cancelled, progress, message, xml, report, stems, synced, files, check}`.
-4. The panel reads that file every 0.7 s (manifest `localFileSystem: fullAccess`), shows progress, and on `done` imports `xml` and checks the sequence appeared. If the app doesn't answer within 60 s, the panel says to install SlingSync 1.2.0b2 or later.
+4. The panel reads that file every 0.7 s, shows progress, and on `done` imports the XML and checks the sequence appeared. No answer within 60 s → it says to install the app.
+
+This bridge is removed when the panel engine is ready.

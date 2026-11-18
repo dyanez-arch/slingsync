@@ -18,6 +18,8 @@
               white-space: pre-wrap; min-height: 18px; }
     #status.ok { border-left: 3px solid #3fb950; }
     #status.err { border-left: 3px solid #e5534b; }
+    #about p { margin: 8px 0; line-height: 1.5; }
+    a { color: #3b9cff; }
     hr { border: none; border-top: 1px solid rgba(255,255,255,0.12); margin: 14px 0 6px; }
   </style>
 </head>
@@ -26,7 +28,7 @@
     <img src="icons/logo.png" alt="">
     <div>
       <h1>SlingSync</h1>
-      <div class="muted">Panel prototype 0.3 · tests</div>
+      <div class="muted">Panel prototype 0.4 · tests</div>
     </div>
   </header>
 
@@ -44,6 +46,18 @@
   <button id="fromFile">Import XML File…</button>
 
   <hr>
+  <details id="about">
+    <summary class="muted">About SlingSync</summary>
+    <p><b>SlingSync panel</b> <span id="aboutVersion" class="muted"></span><br>
+      Free multicam sync by sound, for Premiere Pro.</p>
+    <p>Made by <a class="ext" href="https://github.com/dyanez-arch">Daniel Yanez</a>, documentary editor.<br>
+      Free and open source (MIT License).</p>
+    <p><a class="ext" href="https://github.com/dyanez-arch/slingsync">Source code, guides and the desktop app on GitHub</a><br>
+      <a class="ext" href="https://github.com/dyanez-arch/slingsync/issues">Report a problem or suggest a feature</a></p>
+    <p id="supportLine" hidden>If SlingSync saves you time, you can
+      <a class="ext" id="supportLink" href="">support its development</a>.</p>
+  </details>
+
   <details>
     <summary class="muted">Developer tests (temporary)</summary>
     <button id="labWav">Test 1: Read a WAV file…</button>

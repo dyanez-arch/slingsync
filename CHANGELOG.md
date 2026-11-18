@@ -8,6 +8,13 @@ What was tested with each build is in the [testing log](docs/testing.md).
 
 ### Added
 - **Premiere panel step 2 (panel 0.2):** **Sync Shoot Folder…** in the panel opens the SlingSync app with that folder (via a `slingsync://` link that the app now registers). The app syncs it, reports progress to the panel through a small `.slingsync_status.json` file in the folder, and the panel imports the synced sequence. Option to also export audio files. Tested with the app driven offscreen, including a folder name with a space and an accent; not yet tested in Premiere.
+- App **About** now credits the creator (link to GitHub profile) and links to Issues. A donation link is ready to switch on (`SUPPORT_URL`) once there is a page. Tested offscreen.
+- **Docs:** new [Desktop app and Premiere panel](docs/desktop-app-and-premiere-panel.md) page explaining the two tools, why they're built differently and how they relate; README, docs index, code layout and panel README reorganised around it.
+
+### Premiere panel 0.3 – 0.4 (development, not packaged)
+- 0.3: temporary **Developer tests** to check a panel-only engine is feasible. Run in Premiere Pro 2027 on 2026-11-18: direct WAV reading ✅ fast, Media Encoder ✅ slow (fallback only), JavaScript speed ✅, built-in audio decoder ❌ none, WebAssembly ✅.
+- 0.4: **About** section (version, creator, GitHub, report a problem, donation link when set). Opening web links needs the `https` scheme in the manifest. Not yet tested in Premiere.
+- **Panel decoder:** FFmpeg 7.1.1 (same as the app), audio only, built to WebAssembly (`premiere-panel/wasm/`, `scripts/build_panel_wasm.sh`). Builds; not yet wired in or tested.
 
 ## 1.2.0b1 (test build, 2026-11-17)
 
