@@ -172,7 +172,7 @@ document.getElementById("fromFolder").addEventListener("click", () => guarded(as
 // ---- About ----
 // Donation page: set this once the page exists (e.g. "https://ko-fi.com/<name>"); the line
 // stays hidden while it's empty. Keep in sync with SUPPORT_URL in slingsync/gui.py.
-const SUPPORT_URL = "";
+const SUPPORT_URL = "https://ko-fi.com/pisdronio";
 try {
   document.getElementById("aboutVersion").textContent = "version " + require("uxp").versions.plugin;
 } catch (e) { /* version unknown */ }

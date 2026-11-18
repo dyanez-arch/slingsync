@@ -130,6 +130,8 @@ This produces `dist/SlingSync.app` and a `.dmg`. Pushing a tag such as `v1.1.0` 
 
 Made by [Daniel Yanez](https://github.com/dyanez-arch), a documentary editor, to stop syncing multicam shoots by hand. SlingSync is free. Problems and ideas are welcome in [Issues](../../issues).
 
+If it saves you time, you can support its development on **[Ko-fi](https://ko-fi.com/pisdronio)** ☕
+
 ## License
 
 MIT for SlingSync's own code. The desktop app bundles FFmpeg through PyAV, and the panel includes FFmpeg compiled to WebAssembly; FFmpeg is LGPL 2.1+ (see [`premiere-panel/wasm/`](premiere-panel/wasm/README.md)).

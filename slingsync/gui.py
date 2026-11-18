@@ -28,7 +28,7 @@ COPYRIGHT = "© 2026 Daniel Juan Yanez Villagomez"
 CREATOR_URL = "https://github.com/dyanez-arch"
 # Donation page (e.g. "https://ko-fi.com/<name>"); the About line is hidden while empty.
 # Keep in sync with SUPPORT_URL in premiere-panel/index.js.
-SUPPORT_URL = ""
+SUPPORT_URL = "https://ko-fi.com/pisdronio"
 
 
 STATUS_FILE = ".slingsync_status.json"
