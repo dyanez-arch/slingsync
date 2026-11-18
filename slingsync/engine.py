@@ -224,7 +224,7 @@ def probe(path):
     return out
 
 
-def _blocks(path, chunk):
+def _blocks(path, chunk, cancel=None):
     """Yield (n, channels) float32 blocks at SR Hz, all audio streams side by side."""
     c = av.open(path)
     try:
@@ -254,7 +254,9 @@ def _blocks(path, chunk):
                 lens[k] = rest.shape[1]
             return np.ascontiguousarray(np.concatenate(out, axis=0).T)
 
-        for packet in c.demux(*streams):
+        for n_packets, packet in enumerate(c.demux(*streams)):
+            if n_packets % 50 == 0:
+                _check(cancel)                       # Cancel stops mid-file, not after it
             k = idx[packet.stream.index]
             try:
                 for f in packet.decode():
@@ -275,7 +277,7 @@ def _blocks(path, chunk):
         c.close()
 
 
-def fingerprint(x):
+def fingerprint(x, cancel=None):
     """Spectral-peak landmark hashes (Shazam-style). Returns (hashes, frame_times)."""
     empty = (np.zeros(0, np.int64), np.zeros(0, np.int32))
     if len(x) < N_FFT * 8:
@@ -286,6 +288,7 @@ def fingerprint(x):
     T, F, V = [], [], []
     B, M = 4096, 8
     for b0 in range(0, nfr, B):
+        _check(cancel)
         f0, f1 = max(0, b0 - M), min(nfr, b0 + B + M)
         seg = x[f0 * HOP:(f1 - 1) * HOP + N_FFT]
         fr = np.lib.stride_tricks.sliding_window_view(seg, N_FFT)[::HOP]
@@ -329,7 +332,9 @@ def fingerprint(x):
     return np.concatenate(H), np.concatenate(TT).astype(np.int32)
 
 
-def analyze(job):
+def analyze(job, cancel=None):
+    """Analyse one file (cached). Raises Cancelled promptly if `cancel` is set; nothing
+    is cached for a file that was interrupted."""
     path, cache, ref_ch, silence_db, flat_db = job
     meta_p, mono_p, fp_p = cache + ".json", cache + "_mono.npy", cache + "_fp.npz"
     if os.path.exists(meta_p) and os.path.exists(fp_p):
@@ -342,7 +347,7 @@ def analyze(job):
     frame = int(0.05 * SR)
     # pass 1: per-channel loudness in 50 ms frames
     rms = []
-    for blk in _blocks(path, frame * 400):
+    for blk in _blocks(path, frame * 400, cancel):
         m = len(blk) // frame
         if m:
             rms.append(np.sqrt(np.mean(blk[:m * frame].reshape(m, frame, nch) ** 2, axis=1)))
@@ -390,10 +395,10 @@ def analyze(job):
     w = np.zeros(nch, np.float32)
     w[used] = gains[used] / len(used)
     with np.errstate(all="ignore"):   # numpy 2.0 + Apple Accelerate raises spurious FP warnings
-        mono = np.concatenate([blk @ w for blk in _blocks(path, frame * 400)]).astype(np.float32)
+        mono = np.concatenate([blk @ w for blk in _blocks(path, frame * 400, cancel)]).astype(np.float32)
     mono = np.nan_to_num(mono, nan=0.0, posinf=0.0, neginf=0.0)
     np.save(mono_p, mono)
-    h, t = fingerprint(mono)
+    h, t = fingerprint(mono, cancel)
     np.savez(fp_p, h=h, t=t)
     meta["mono"], meta["fp"] = mono_p, fp_p
     with open(meta_p, "w") as fh:
@@ -1045,7 +1050,7 @@ def run(project, ref_channels=None, fps=None, keep_silent=False, skip_silent_cli
 
     done = 0
     with ThreadPoolExecutor(workers) as ex:
-        futs = {ex.submit(analyze, j): i for i, j in jobs.items()}
+        futs = {ex.submit(analyze, j, cancel): i for i, j in jobs.items()}
         try:
             for f in as_completed(futs):
                 _check(cancel)
@@ -1053,6 +1058,8 @@ def run(project, ref_channels=None, fps=None, keep_silent=False, skip_silent_cli
                 done += 1
                 try:
                     meta = f.result()
+                except Cancelled:
+                    raise
                 except Exception as e:
                     if not os.path.isdir(project):
                         raise ValueError(
