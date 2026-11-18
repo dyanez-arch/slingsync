@@ -154,7 +154,8 @@ Generated with known offsets: 3 devices, steady ambience plus sparse events, a d
 - [x] Plug-in `.ccx` (0.10.3) installs by double-click and works in Premiere 2027 (2026-11-18)
 - [ ] Plug-in audio-file export inside Premiere (UXP `fs.write`)
 - [ ] Plug-in *Import a synced folder* link
-- [x] Plug-in 0.13.2 full sync of Devon 2nd Run **inside Premiere** (2026-11-18, ~50 min on the USB drive): 67 synced, 72 placed by date, 151 matches; every clip time identical to the plug-in engine in Node and to the desktop app
+- [x] Plug-in 0.13.2 full sync of Devon 2nd Run **inside Premiere** (2026-11-18, 85.8 min in Premiere on the USB drive vs 48 min in Node): 67 synced, 72 placed by date, 151 matches; every clip time identical to the plug-in engine in Node and to the desktop app
+- [x] Plug-in 0.13.2 device list for Devon 23 Oct inside Premiere: Audio split into 4 recorders, B-roll cameras merged into Cam A (80) and Cam B (78), defaults preselected
 - [x] Plug-in settings step inside Premiere (0.13.2, 2026-11-18): Devon 2nd Run lists Audio - Boom / Ed Lav / Matthew Lav, Cam A, Cam B with correct file and channel counts; menus show their defaults (0.13.1's `<select>` menus were blank)
 - [x] Plug-in engine on a large shoot of original camera files (Devon 2nd Run, identical to the app)
 - [ ] First launch on a second Mac, recording macOS's exact wording

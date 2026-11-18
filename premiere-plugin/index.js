@@ -254,10 +254,11 @@ function renderDevices(devs) {
     const name = document.createElement("div"); name.className = "name";
     name.textContent = d.name;
     const count = document.createElement("div"); count.className = "count";
-    count.textContent = `${d.files.length} ${d.camera ? "clips" : "files"}` +
+    const n = d.files.length;
+    count.textContent = `${n} ${d.camera ? (n === 1 ? "clip" : "clips") : (n === 1 ? "file" : "files")}` +
       (d.channels ? ` · ${d.channels} ch` : "") +
-      (d.proxies_used ? ` · ${d.proxies_used} proxies` : "") +
-      (d.skipped_proxies ? ` · ${d.skipped_proxies} proxies skipped` : "");
+      (d.proxies_used ? ` · ${d.proxies_used} ${d.proxies_used === 1 ? "proxy" : "proxies"}` : "") +
+      (d.skipped_proxies ? ` · ${d.skipped_proxies} ${d.skipped_proxies === 1 ? "proxy" : "proxies"} skipped` : "");
     name.appendChild(document.createElement("br")); name.appendChild(count);
     const labels = [d.channels ? AUTO_CH : "No audio"];
     for (let ch = 1; ch <= d.channels; ch++) labels.push(`Only channel ${ch}`);
