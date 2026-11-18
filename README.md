@@ -121,6 +121,10 @@ bash scripts/build_mac.sh
 
 This produces `dist/SlingSync.app` and a `.dmg`. Pushing a tag such as `v1.1.0` makes GitHub Actions build the DMG and attach it to a new release automatically. See [development](docs/development.md).
 
+## What's next
+
+Sync from Premiere bins in the plug-in, an Intel Mac build, support for older Premiere versions, and signed builds without the "unverified" warnings once there are enough supporters. See the [roadmap](docs/roadmap.md).
+
 ## Repository layout
 
 | Folder | |

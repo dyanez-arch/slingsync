@@ -11,6 +11,7 @@ SlingSync is a desktop app and a Premiere Pro plug-in. Start with [Desktop app a
 | [Development](development.md) | Code layout, running from source, testing and debugging, building the app, publishing releases |
 | [Troubleshooting](troubleshooting.md) | Common problems and what to do about them |
 | [Premiere Pro plug-in](../premiere-plugin/README.md) | The Premiere Pro 2027 plug-in: what it does, status, how to load it, how it's built and tested |
+| [Roadmap](roadmap.md) | What's planned next: sync from Premiere bins, Intel Macs, older Premiere versions, removing the "unverified" warnings |
 | [Testing log](testing.md) | What has been tested on real footage and in Premiere, and what hasn't yet |
 
 See also the [changelog](../CHANGELOG.md).
