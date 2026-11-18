@@ -33,5 +33,12 @@ rm -rf build/dmg && mkdir -p build/dmg
 cp -R dist/SlingSync.app build/dmg/
 ln -s /Applications build/dmg/Applications
 DMG="dist/SlingSync-${VERSION}-macOS-${LABEL}.dmg"
-hdiutil create -volname "SlingSync" -srcfolder build/dmg -ov -format UDZO "$DMG"
+# hdiutil sometimes fails with "Resource busy" on build machines (Spotlight/XProtect still
+# looking at the new app): wait and retry.
+for attempt in 1 2 3 4 5; do
+  if hdiutil create -volname "SlingSync" -srcfolder build/dmg -ov -format UDZO "$DMG"; then break; fi
+  [ "$attempt" = 5 ] && { echo "hdiutil failed 5 times"; exit 1; }
+  echo "hdiutil failed (attempt $attempt), retrying in 10 s..."
+  sleep 10
+done
 echo "Built $DMG"
