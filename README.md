@@ -14,7 +14,7 @@ Tested on real documentary footage and checked in Premiere Pro. See the [testing
 - ✅ A full-day site visit: 131 clips from 5 devices (2 cameras, recorder, GoPro, drone). The camera timecode was changed mid-day.
 - ⏳ Not yet tested: the packaged app on other Macs, original camera files on a large shoot, mixed frame rates, NAS drives, Intel Macs.
 
-The current release (v1.0.0) predates this testing. Until the next release, the improvements are only available by [running from source](docs/development.md#running-from-source).
+The current release is **v1.1.0**. What's new is in the [changelog](CHANGELOG.md).
 
 ## Documentation
 

@@ -101,7 +101,8 @@ Generated with known offsets: 3 devices, steady ambience plus sparse events, a d
 - [x] A many-clip shoot imported into Premiere (Scotland, above)
 - [ ] Original camera files (MXF/MOV) rather than proxies, on a many-clip shoot
 - [x] The built DMG: install, first launch, choose folder, progress, results (Kishorn, above)
-- [ ] Cancel during a sync, in the installed app
+- [ ] Faster Cancel and version/build display, in the installed app (new in 1.1.0b3; tested from source)
+- [x] Cancel during a sync, in the installed app (1.1.0b1/b2: worked but took ~1 min to stop on long files; fixed in 1.1.0b3)
 - [ ] New Sync / Help / About in the installed app (tested offscreen only)
 - [ ] First launch on a second Mac, recording macOS's exact wording
 - [ ] Mixed frame rates in one project (23.976 / 25 / 29.97 / 50)

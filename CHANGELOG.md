@@ -4,7 +4,22 @@ Every build that reaches anyone gets its own version number and section here. Te
 
 What was tested with each build is in the [testing log](docs/testing.md).
 
-## 1.1.0b3 (next test build)
+## 1.1.0 (2026-11-17)
+
+The first release tested on real documentary footage and checked in Premiere Pro: four shoots, from a 79-minute interview to a 131-clip day with five devices (see the [testing log](docs/testing.md)). It includes everything in the test builds below.
+
+**Highlights**
+- Syncs real shoots: proxies or originals, folders or loose files, cameras with only scratch/ambient audio, multichannel recorders with dead channels.
+- Places clips that share no sound using recorder clocks, camera timecode or dates, checked against the clips that did sync, including clocks that were changed mid-shoot.
+- Measures and reports clock drift on long takes.
+- Simpler colours: synced / orange (placed by date) / red (not placed), and a clearer report.
+- App: logo, New Sync / Sync Another Folder, Help with a quick guide, About, faster Cancel, version and build shown in About and every report.
+
+**Not yet tested by hand in the installed app:** the faster Cancel and the version display, both new in 1.1.0b3 and tested from source. Intel Macs and NAS/read-only drives are not supported yet.
+
+## 1.1.0b3 (test build, 2026-11-17)
+
+Built by GitHub Actions run [44216414950](https://github.com/dyanez-arch/slingsync/actions/runs/44216414950) from commit `6a56c0f`.
 
 ### Added
 - **Version tracking.** Every build has its own version. **About** and the report header show the version plus the exact code revision and build date (e.g. `1.1.0b3 (build cae50f3, 2026-11-18)`), so any report can be traced to the build that made it. Running from source shows `(from source)`.
