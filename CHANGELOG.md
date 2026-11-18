@@ -32,6 +32,7 @@ First fixes from testing on real footage. See [docs/testing.md](docs/testing.md)
 - CI builds on `macos-15` (the `macos-14` runner is retired).
 
 ### Fixed
+- **Cancel** stops within about a second, even in the middle of a long recording (it used to wait for every file being read to finish).
 - Analysis crashed with `'NoneType' object is not subscriptable` when a file couldn't be reopened.
 - Spurious "divide by zero / overflow in matmul" warnings from numpy 2.0 on Apple Silicon.
 
