@@ -24,7 +24,7 @@ Tested on real documentary footage and checked in Premiere Pro. See the [testing
 - ✅ Premiere panel: synced shoots inside Premiere Pro 2027 with no app, results identical to the app; Compact Timeline on a 181-clip day.
 - ⏳ Not yet tested: the packaged app on other Macs, mixed frame rates, NAS drives, Intel Macs.
 
-The current release is **v1.1.0**. What's new is in the [changelog](CHANGELOG.md).
+The current release is **v1.2.0**: desktop app plus the Premiere Pro 2027 panel. What's new is in the [changelog](CHANGELOG.md).
 
 ## Documentation
 
@@ -33,6 +33,8 @@ Full guides are in [`docs/`](docs/README.md): [user guide](docs/user-guide.md), 
 ## Download
 
 Get the latest `.dmg` from the [Releases](../../releases) page, open it, and drag **SlingSync** into Applications.
+
+**Premiere Pro 2027 panel:** from the same release, download `SlingSync-panel-….ccx` and double-click it; Creative Cloud installs it. Then restart Premiere and open **Window → UXP Plugins → SlingSync**.
 
 **First launch:** SlingSync is free and isn't signed with a paid Apple developer account, so macOS blocks it the first time. This is expected, and you only do it once:
 
