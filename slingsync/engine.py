@@ -571,9 +571,9 @@ def place(clips, edges, min_votes=12):
                 if v not in rel:
                     rel[v] = rel[u] + off
                     stack.append(v)
-    # least-squares over ALL consistent matches (averages out small errors along chains)
-    from scipy.sparse import lil_matrix
-    from scipy.sparse.linalg import lsqr
+    # least-squares over ALL consistent matches (averages out small errors along chains).
+    # Solved exactly (minimum-norm, like the plug-in's engine): scipy's iterative lsqr could
+    # stop at its iteration limit and leave clips several ms off on larger shoots.
     for members in comps.values():
         if len(members) < 3:
             continue
@@ -583,13 +583,13 @@ def place(clips, edges, min_votes=12):
         for _ in range(2):
             es = [e for e in edges if e["a"] in mset
                   and abs(rel[e["b"]] - rel[e["a"]] - e["off"]) < 0.05]
-            M = lil_matrix((len(es) + 1, len(members)))
+            M = np.zeros((len(es) + 1, len(members)))
             y = np.zeros(len(es) + 1)
             for r_, e in enumerate(es):
                 w = np.sqrt(e["votes"]) * (2.0 if e.get("refined") else 1.0)
                 M[r_, col[e["b"]]], M[r_, col[e["a"]]], y[r_] = w, -w, w * e["off"]
             M[len(es), col[root]], y[len(es)] = 100.0, 100.0 * rel[root]
-            sol = lsqr(M.tocsr(), y, atol=1e-12, btol=1e-12)[0]
+            sol = np.linalg.lstsq(M, y, rcond=None)[0]
             for i in members:
                 rel[i] = float(sol[col[i]])
     conflicts = [e for e in edges if abs(rel[e["b"]] - rel[e["a"]] - e["off"]) > 0.08]
@@ -1091,20 +1091,70 @@ def _is_audio_export(dname, files):
         re.search(r" - ch\d+\.wav$", os.path.basename(f), re.I) for f in files)
 
 
+# Folders of camera-card structures (one camera), never split into devices
+CARD_DIRS = {"contents", "clips001", "clips002", "private", "xdroot", "dcim", "avchd", "bdmv",
+             "m4root", "clip", "stream", "video", "audio", "sub", "card", "misc"}
+
+
+def _split_group(project, dname):
+    """A device folder that only groups several recorders or cameras ('Audio/Boom',
+    'Audio/Ed Lav', 'Audio/Matthew Lav') -> [(device name, files)] for each, or None.
+
+    Split only when the folder has no media of its own, at least two subfolders contain
+    media, none is a camera-card folder (CONTENTS, PRIVATE, DCIM...), and the subfolders'
+    files are named differently (SHOOT4T01.wav vs ED_0001.wav). Cards of one camera share a
+    naming pattern (A001C002 / A002C001, CAShoe_0702 / CAShoe_0731), so they stay together."""
+    root = os.path.join(project, dname)
+    try:
+        entries = sorted(os.listdir(root))
+    except OSError:
+        return None
+    media_ext = VIDEO_EXT | AUDIO_EXT
+    if any(not e.startswith(".") and os.path.isfile(os.path.join(root, e))
+           and os.path.splitext(e)[1].lower() in media_ext for e in entries):
+        return None
+    subs = [e for e in entries if not e.startswith(".") and e.lower() not in SKIP_DIRS
+            and os.path.isdir(os.path.join(root, e))]
+    parts = [(e, _media_files(os.path.join(root, e))) for e in subs]
+    parts = [(e, f) for e, f in parts if f]
+    if len(parts) < 2 or any(e.lower() in CARD_DIRS for e, _ in parts):
+        return None
+    names = [{_loose_device(f) for f in files} for _, files in parts]
+    if any(names[i] & names[j] for i in range(len(names)) for j in range(i + 1, len(names))):
+        return None
+    return [(f"{dname} - {e}", files) for e, files in parts]
+
+
 def scan_devices(project):
     """List device subfolders and their media files (no decoding).
 
     Skips hidden files, Premiere auto-save/preview folders and SlingSync's own audio
-    exports (<name>_audio). Proxies (Premiere's
+    exports (<name>_audio). A folder that only groups several recorders or cameras in
+    subfolders (Audio/Boom, Audio/Ed Lav) becomes one device per subfolder. Proxies (Premiere's
     *_Proxy files) are skipped when their original is also in the device folder, and
     used when it isn't. Folders with no media are left out."""
     devices = sorted(d for d in os.listdir(project)
                      if os.path.isdir(os.path.join(project, d)) and not d.startswith(".")
                      and d.lower() not in SKIP_DIRS)
-    out = []
+    found = {}                                   # device name -> files, in order
     for dname in devices:
-        entry = _device_entry(dname, _media_files(os.path.join(project, dname)))
-        if entry["files"] and not _is_audio_export(dname, entry["files"]):
+        if _is_audio_export(dname, _media_files(os.path.join(project, dname))):
+            continue
+        group = _split_group(project, dname)
+        for name, files in group or [(dname, _media_files(os.path.join(project, dname)))]:
+            found[name] = files
+    # 'B-roll/Cam A' is the same camera as 'Cam A' when its files are named the same way
+    names_of = {n: {_loose_device(f) for f in fs} for n, fs in found.items()}
+    for name in list(found):
+        if " - " not in name:
+            continue
+        sub = name.split(" - ", 1)[1]
+        if sub in found and sub in devices and names_of[name] & names_of[sub]:
+            found[sub] = found[sub] + found.pop(name)
+    out = []
+    for name, files in found.items():
+        entry = _device_entry(name, files)
+        if entry["files"]:
             out.append(entry)
     if out:
         return out

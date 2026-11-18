@@ -34,13 +34,33 @@ Interview Day 1/
 
 Rules:
 
-- Every file inside a device folder, at any depth, is treated as coming from that device.
+- Every file inside a device folder, at any depth, is treated as coming from that device, with one exception (next section).
 - Files and folders starting with `.` are ignored.
 - Premiere's auto-save and preview folders are ignored.
 - Recognised video: `.mp4 .mov .mxf .mts .m2ts .avi .mkv .m4v .mpg .mpeg .3gp .insv .lrv`
 - Recognised audio: `.wav .bwf .aif .aiff .mp3 .m4a .flac .aac .ogg .caf`
 
 Keep each physical device in its own folder. SlingSync never tries to match two clips from the same device against each other, and it learns each device's clock separately.
+
+### A folder that groups several devices
+
+If a folder only holds other device folders, SlingSync splits it into one device per subfolder:
+
+```
+Shoot/
+    Audio/
+        Boom/          SHOOT4T01.wav …   → device "Audio - Boom"
+        Ed Lav/        ED_0001.wav …     → device "Audio - Ed Lav"
+        Matthew Lav/   Matthew_0001.wav … → device "Audio - Matthew Lav"
+    B-roll/
+        Cam A/         CAShoe_0533.MXF … → joins device "Cam A" (same camera, same file names)
+    Cam A/
+    Cam B/
+```
+
+It splits only when the folder has no media of its own, at least two subfolders contain media, none is a camera-card folder (`CONTENTS`, `PRIVATE`, `DCIM`, `CLIPS001`…), and the subfolders' files are **named differently** (`SHOOT4T…` vs `ED_…`). Cards from one camera share a naming pattern (`A001C002…`, `A002C001…`), so `Cam A/Card 1` and `Cam A/Card 2` stay one camera. A split-off subfolder with the same name and file naming as a top-level device (`B-roll/Cam A` and `Cam A`) joins it.
+
+Why it matters: on a real shoot with three recorders inside `Audio/`, treating them as one device hid each recorder's clock: 59 of 139 clips synced by sound and the timeline was 72 hours long. Split, 67 synced and the timeline was 24.5 hours.
 
 ### Loose files (no subfolders)
 

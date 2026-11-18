@@ -6,6 +6,12 @@ What was tested with each build is in the [testing log](docs/testing.md).
 
 ## 1.2.1 (next)
 
+### Improved
+- **A folder that groups several recorders or cameras is split into one device each** (app and plug-in): `Audio/Boom`, `Audio/Ed Lav`, `Audio/Matthew Lav` become three devices instead of one "Audio" device with three mixed-up clocks. Only when the subfolders' files are named differently, so cards of one camera stay together; `B-roll/Cam A` joins `Cam A` when its files are named the same way. Devon 2nd Run: 59 → 67 clips synced by sound, timeline 72 h → 24.5 h (compact 11 h 34 → 6 h 05). Checked on 14 shoots: only the 3 with grouped folders change. See the [user guide](docs/user-guide.md#a-folder-that-groups-several-devices).
+
+### Fixed
+- **Placement accuracy (app):** the final least-squares step used scipy's iterative `lsqr`, which on Devon 2nd Run stopped at its iteration limit and left clips up to 6.8 ms off (under a frame). Now solved exactly, as the plug-in already did; app and plug-in are byte-identical again on Devon, Kishorn, Borthwick and the synthetic project.
+
 ### Changed
 - **"Panel" is now called the Premiere Pro plug-in** everywhere (docs, app About, the plug-in itself, GitHub): it's what editors call it. Repository folder `premiere-panel/` → `premiere-plugin/`, scripts `build_plugin_wasm.sh` and `package_plugin.sh`, package `SlingSync-PremierePro-plugin-<version>.ccx`, docs page [Desktop app and Premiere Pro plug-in](docs/desktop-app-and-premiere-plugin.md). The plug-in's internal id stays `io.github.slingsync.panel`, so an installed copy updates instead of appearing twice.
 

@@ -50,13 +50,53 @@
     return found;
   }
 
+  // engine.CARD_DIRS / engine._split_group: a folder grouping several recorders or cameras
+  // (Audio/Boom, Audio/Ed Lav) becomes one device per subfolder; camera cards stay together
+  const CARD_DIRS = new Set(["contents", "clips001", "clips002", "private", "xdroot", "dcim", "avchd", "bdmv",
+    "m4root", "clip", "stream", "video", "audio", "sub", "card", "misc"]);
+  async function splitGroup(P, project, dname) {
+    let entries;
+    try { entries = await P.listDir(P.join(project, dname)); } catch (e) { return null; }
+    entries.sort((x, y) => (x.name < y.name ? -1 : x.name > y.name ? 1 : 0));
+    if (entries.some((e) => !e.isDir && C.isMedia(e.name))) return null;
+    const subs = entries.filter((e) => e.isDir && !e.name.startsWith(".") && !C.skipDir(e.name)).map((e) => e.name);
+    const parts = [];
+    for (const e of subs) {
+      const files = await mediaFiles(P, P.join(P.join(project, dname), e));
+      if (files.length) parts.push([e, files]);
+    }
+    if (parts.length < 2 || parts.some(([e]) => CARD_DIRS.has(e.toLowerCase()))) return null;
+    const names = parts.map(([, files]) => new Set(files.map(C.looseDevice)));
+    for (let i = 0; i < names.length; i++) {
+      for (let j = i + 1; j < names.length; j++) if ([...names[i]].some((n) => names[j].has(n))) return null;
+    }
+    return parts.map(([e, files]) => [`${dname} - ${e}`, files]);
+  }
+
   async function scanDevices(P, project) {
     const entries = await P.listDir(project);
     const devices = entries.filter((e) => e.isDir && !C.skipDir(e.name)).map((e) => e.name).sort();
-    const out = [];
+    const found = new Map();
     for (const d of devices) {
-      const entry = C.deviceEntry(d, await mediaFiles(P, P.join(project, d)));
-      if (entry.files.length && !C.isAudioExport(d, entry.files)) out.push(entry);
+      const files = await mediaFiles(P, P.join(project, d));
+      if (C.isAudioExport(d, files)) continue;
+      const group = await splitGroup(P, project, d);
+      for (const [name, fs] of group || [[d, files]]) found.set(name, fs);
+    }
+    // 'B-roll/Cam A' is the same camera as 'Cam A' when its files are named the same way
+    const namesOf = new Map([...found].map(([n, fs]) => [n, new Set(fs.map(C.looseDevice))]));
+    for (const name of [...found.keys()]) {
+      if (!name.includes(" - ")) continue;
+      const sub = name.split(" - ").slice(1).join(" - ");
+      if (found.has(sub) && devices.includes(sub) && [...namesOf.get(name)].some((n) => namesOf.get(sub).has(n))) {
+        found.set(sub, found.get(sub).concat(found.get(name)));
+        found.delete(name);
+      }
+    }
+    const out = [];
+    for (const [name, files] of found) {
+      const entry = C.deviceEntry(name, files);
+      if (entry.files.length) out.push(entry);
     }
     if (out.length) return out;
     const groups = new Map();
