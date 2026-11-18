@@ -6,7 +6,7 @@
   const lfs = storage.localFileSystem;
   const fs = require("fs");
   const out = document.getElementById("labOut");
-  const log = (s) => { out.textContent += s + "\n"; };
+  const log = (s) => { out.textContent += s + "\n"; out.scrollTop = out.scrollHeight; };
   const now = () => Date.now();
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -16,6 +16,17 @@
       try { await fn(); } catch (e) { log("ERROR: " + (e && e.stack ? e.stack : e)); }
     });
   }
+
+  // Copy the whole log (to paste into a message instead of screenshots)
+  document.getElementById("labCopy").addEventListener("click", async () => {
+    const text = out.textContent.trim();
+    try {
+      await navigator.clipboard.writeText(text);
+      log("\n(Log copied ✓)");
+    } catch (e) {
+      log("\n(Couldn't copy: " + e + ". Select the text and press ⌘C instead.)");
+    }
+  });
 
   // ---- Test 1: read a WAV in chunks, measure speed, per-channel level ----
   btn("labWav", async () => {
