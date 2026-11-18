@@ -6,7 +6,7 @@ What was tested with each build is in the [testing log](docs/testing.md).
 
 ## 1.2.0b2 (test build)
 
-Built by GitHub Actions; the run is linked in the [testing log](docs/testing.md) once it finishes. Includes the **Premiere panel package** (`SlingSync-panel-0.10.3.ccx`) next to the DMG.
+Built by GitHub Actions run [44355109228](https://github.com/dyanez-arch/slingsync/actions/runs/44355109228) from commit `df9fe7f`: `SlingSync-1.2.0b2-macOS-AppleSilicon.dmg` plus the **Premiere panel package** `SlingSync-panel-0.10.3.ccx`, in one download (*SlingSync-macos-15*). (The first attempt, run 44354634877, failed making the DMG: hdiutil "Resource busy"; the build now retries that step.)
 
 ### Fixed
 - **Loose-files shoots synced again after an audio export lost their video** (found on Mark Borthwick, 2026-11-18): the `<name>_audio` folder that *Also export audio files* creates was taken for a device subfolder, so only the exported WAVs were synced and the cameras and recorder were ignored (0 video tracks). SlingSync's own audio-export folders are now never treated as devices (app and panel). Borthwick now: 3 of 3 clips synced, 2 video + 9 audio tracks, identical in both engines.
