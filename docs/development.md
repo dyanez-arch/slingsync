@@ -27,6 +27,7 @@ premiere-panel/
     wasm/ssdec.c           FFmpeg glue: open a file, list streams/tags, decode audio at any rate
     wasm/ssdec.js, .wasm   built decoder (scripts/build_panel_wasm.sh)
 scripts/build_panel_wasm.sh    builds FFmpeg 7.1.1 (audio only) + ssdec.c with Emscripten
+scripts/package_panel.sh       packages the panel as dist/SlingSync-panel-<version>.ccx (also done by CI)
 
 ── Shared ──
 docs/                      guides for both tools

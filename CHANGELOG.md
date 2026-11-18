@@ -4,7 +4,9 @@ Every build that reaches anyone gets its own version number and section here. Te
 
 What was tested with each build is in the [testing log](docs/testing.md).
 
-## 1.2.0b2 (next test build)
+## 1.2.0b2 (test build)
+
+Built by GitHub Actions; the run is linked in the [testing log](docs/testing.md) once it finishes. Includes the **Premiere panel package** (`SlingSync-panel-0.10.3.ccx`) next to the DMG.
 
 ### Fixed
 - **Loose-files shoots synced again after an audio export lost their video** (found on Mark Borthwick, 2026-11-18): the `<name>_audio` folder that *Also export audio files* creates was taken for a device subfolder, so only the exported WAVs were synced and the cameras and recorder were ignored (0 video tracks). SlingSync's own audio-export folders are now never treated as devices (app and panel). Borthwick now: 3 of 3 clips synced, 2 video + 9 audio tracks, identical in both engines.
@@ -20,6 +22,7 @@ What was tested with each build is in the [testing log](docs/testing.md).
 - 0.6: **the panel's own engine**: **Sync Shoot Folder…** runs a JavaScript port of the sync engine inside Premiere, no app needed (the `slingsync://` bridge to the app is no longer used). Checked against the app: Kishorn (111 clips) and the synthetic project give byte-identical XML and identical reports. Synced Kishorn inside Premiere 2027 successfully (2026-11-18). 0.6.1: clipboard copy via UXP `setContent`, Copy details.
 - 0.7: simpler layout: one main button; progress, result and details only when needed; import and About as small links; developer tests moved into About.
 - 0.8: **Compact Timeline…** button.
+- 0.10.3: **packaged as `.ccx`** (`scripts/package_panel.sh`, about 1 MB: panel, engine, decoder, MIT license and FFmpeg LGPL notice; tests and C source left out). GitHub builds now package it and attach it to releases.
 - 0.9 – 0.10.2: **Compact Timeline** works on the open sequence: Premiere copies it ("… (compact)"), the panel closes every gap where no track has a clip, checks every clip landed where planned, and opens the copy; the original is unchanged. Premiere 2027 needs actions created inside `lockedAccess` + `executeTransaction` and fresh objects after each edit (otherwise "The script object is no longer valid"). Tested in Premiere 2027 on Devon Night 2 (2026-11-18): 181 clips, 47 blocks, 135.1 → 59.6 min, all clips where planned; clips move individually (linked clips don't follow). 0.10 also adds the audio-file export to the panel (WAVs match the app's to within 1 least-significant bit).
 
 ### Premiere panel 0.3 – 0.4 (development, not packaged)

@@ -2,7 +2,7 @@
 
 A panel inside Premiere Pro that syncs a shoot by sound and puts the synced sequence straight into the open project, **with no other app needed**. It's the Premiere-native counterpart of the [SlingSync desktop app](../README.md); for how the two relate and why they're built differently, see [Desktop app and Premiere panel](../docs/desktop-app-and-premiere-panel.md).
 
-Requires **Premiere Pro 2027 (27.0) or later** (Adobe's UXP plugin system). Not packaged yet: it loads through Adobe's UXP Developer Tool (below).
+Requires **Premiere Pro 2027 (27.0) or later** (Adobe's UXP plugin system).
 
 ## What it does
 
@@ -22,9 +22,17 @@ Requires **Premiere Pro 2027 (27.0) or later** (Adobe's UXP plugin system). Not 
 | Import a synced folder | Built; not yet tested in Premiere |
 | Per-device "Sync using" channel, frame rate, silent-channel options | Not in the panel yet (uses the recommended defaults) |
 | Sync from Premiere bins instead of folders | Planned |
-| Packaging for normal installation (`.ccx`, Creative Cloud) | Planned |
+| Packaging for normal installation (`.ccx`) | Built (`scripts/package_panel.sh`, also on GitHub builds); installing by double-click not yet tested |
 
 Full results: [testing log](../docs/testing.md).
+
+## Install
+
+**From a test build or release (`SlingSync-panel-<version>.ccx`):** double-click the `.ccx` file. Creative Cloud asks to install the plugin; since it isn't from Adobe's marketplace it warns that it's a third-party plugin: confirm. Then restart Premiere and open **Window → UXP Plugins → SlingSync**. *(Not yet tested: whether Premiere 2027 accepts a .ccx from outside the marketplace without developer mode. If it doesn't, use the development install below.)*
+
+To remove it: Creative Cloud app → **Plugins** (or **Stock & Marketplace → Plugins**) → SlingSync → Uninstall.
+
+**Build the package yourself:** `bash scripts/package_panel.sh` → `dist/SlingSync-panel-<version>.ccx` (about 1 MB). GitHub Actions does this on every build and attaches it to releases next to the app's DMG.
 
 ## Try it (development install)
 
