@@ -191,7 +191,29 @@ document.getElementById("cancel").addEventListener("click", () => {
 async function guarded(fn) {
   if (busy) return;
   setBusy(true);
-  try { await fn(); } finally { setBusy(false); }
+  try {
+    await fn();
+  } catch (e) {                                 // never fail silently: show what went wrong
+    showBar(null);
+    say("Something went wrong:\n" + (e && e.message ? e.message : e), "err");
+    detailBox.textContent = (detailBox.textContent ? detailBox.textContent + "\n\n" : "") + (e && e.stack ? e.stack : e);
+    document.getElementById("detailsWrap").hidden = false;
+  } finally {
+    setBusy(false);
+  }
+}
+
+// The chosen value of a <select>; Premiere's menus don't always report .value like a browser
+function selected(id, fallback) {
+  const sel = document.getElementById(id);
+  if (!sel) return fallback;
+  let v = sel.value;
+  if ((v === undefined || v === null || v === "") && sel.options && sel.selectedIndex >= 0) {
+    const o = sel.options[sel.selectedIndex];
+    v = o ? (o.value !== undefined && o.value !== "" ? o.value : o.getAttribute && o.getAttribute("value")) : undefined;
+  }
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
 }
 
 // ---- Sync a Shoot: 1. pick folder → show devices and settings, 2. Sync ----
@@ -203,7 +225,12 @@ let pending = null;                           // { path, name, devs } waiting fo
 
 (function fillFps() {
   const sel = document.getElementById("fps");
-  FPS_CHOICES.forEach(([label], i) => { const o = document.createElement("option"); o.value = String(i); o.textContent = label; sel.appendChild(o); });
+  FPS_CHOICES.forEach(([label], i) => {
+    const o = document.createElement("option");
+    o.value = String(i); o.setAttribute("value", String(i)); o.textContent = label;
+    if (i === 0) o.setAttribute("selected", "");
+    sel.appendChild(o);
+  });
 })();
 
 function showSetup(show) {
@@ -226,7 +253,12 @@ function renderDevices(devs) {
       (d.skipped_proxies ? ` · ${d.skipped_proxies} proxies skipped` : "");
     name.appendChild(document.createElement("br")); name.appendChild(count);
     const sel = document.createElement("select"); sel.id = "ch" + k;
-    const add = (v, t) => { const o = document.createElement("option"); o.value = v; o.textContent = t; sel.appendChild(o); };
+    const add = (v, t) => {
+      const o = document.createElement("option");
+      o.value = v; o.setAttribute("value", v); o.textContent = t;
+      if (v === "0") o.setAttribute("selected", "");
+      sel.appendChild(o);
+    };
     add("0", d.channels ? AUTO_CH : "No audio");
     for (let ch = 1; ch <= d.channels; ch++) add(String(ch), `Only channel ${ch}`);
     sel.title = "Which audio to sync this device with. All live channels is usually the most reliable.";
@@ -237,10 +269,11 @@ function renderDevices(devs) {
 
 function readSettings(devs) {
   const refChannels = {};
-  devs.forEach((d, k) => { const v = Number(document.getElementById("ch" + k).value); if (v > 0) refChannels[d.name] = v; });
+  devs.forEach((d, k) => { const v = selected("ch" + k, 0); if (v > 0 && v <= d.channels) refChannels[d.name] = v; });
+  const f = FPS_CHOICES[selected("fps", 0)] || FPS_CHOICES[0];
   return {
     refChannels,
-    fps: FPS_CHOICES[Number(document.getElementById("fps").value)][1],
+    fps: f[1],
     keepSilent: !document.getElementById("dropDead").checked,
     skipSilentClips: document.getElementById("dropEach").checked,
     clearCache: document.getElementById("fresh").checked,
