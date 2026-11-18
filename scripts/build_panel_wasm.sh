@@ -44,9 +44,9 @@ emcc -O3 "$OUT/ssdec.c" -I"$PREFIX/include" \
   "$PREFIX/lib/libavformat.a" "$PREFIX/lib/libavcodec.a" \
   "$PREFIX/lib/libswresample.a" "$PREFIX/lib/libavutil.a" \
   -sASYNCIFY -sASYNCIFY_IMPORTS='["js_read"]' \
-  -sMODULARIZE -sEXPORT_NAME=SSDec -sENVIRONMENT=web,shell \
+  -sMODULARIZE -sEXPORT_NAME=SSDec -sENVIRONMENT=web,node,shell \
   -sALLOW_MEMORY_GROWTH -sINITIAL_MEMORY=64MB \
-  -sEXPORTED_RUNTIME_METHODS='["UTF8ToString","HEAPU8","HEAPF32"]' \
+  -sEXPORTED_RUNTIME_METHODS='["UTF8ToString","HEAPU8","HEAPF32","ccall"]' \
   -sEXPORTED_FUNCTIONS='["_ss_open","_ss_info","_ss_start","_ss_read","_ss_buf","_ss_channels","_ss_close","_malloc","_free"]' \
   -sSINGLE_FILE=0 -sFILESYSTEM=0 \
   -o "$OUT/ssdec.js"

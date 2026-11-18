@@ -13,7 +13,12 @@ File bytes come from the panel's own file access (`js_read`), so only the parts 
 
 **Rebuild:** `brew install emscripten`, then `bash scripts/build_panel_wasm.sh`. It downloads the FFmpeg source to `~/Library/Caches/slingsync-wasm` the first time.
 
-**Status:** builds. Not yet wired into the panel or tested in Premiere.
+**Status:** builds, and decodes identically to the desktop app (tested in Node, not yet inside Premiere). `premiere-panel/engine/media.js` is the JavaScript side.
+
+**Checked against the app** with `premiere-panel/tests/compare_decode.py` (2026-11-18): same channel count, same length, no timing offset, sample differences ≤ 0.000001 (rounding), on 21 files:
+- generated from a Devon recording: MP3, AAC in M4A/MP4/MKV, AIFF, FLAC, PCM in MOV, Opus in Ogg, AC-3
+- real: Devon recorder WAV (5 ch) and Canon MXF from both cameras (8 ch); Kishorn recorder WAV, camera, GoPro and drone proxies (MP4/AAC; the drone has no audio and both agree); AIFF music; iPhone M4A; MP3; a MOV with no audio
+- speed: 18 min of 5-channel WAV in 1.9 s (app 0.9 s), both reading from cache
 
 ## License
 
