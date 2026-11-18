@@ -32,6 +32,7 @@
     return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
   };
   const pyList = (a) => "[" + a.join(", ") + "]";
+  const tick = () => new Promise((r) => setTimeout(r, 0));   // let the panel redraw / see Cancel
 
   // ---- scanning (engine._media_files, engine.scan_devices) ----
   async function mediaFiles(P, folder, recursive = true) {
@@ -108,6 +109,7 @@
       };
       for (let k = 0; ; k++) {
         if (checkCancel && k % 8 === 0) checkCancel();
+        if (k % 8 === 7) await tick();
         const b = await media.read(CHUNK);
         if (!b) break;
         pend.push(b.data); pendN += b.frames;
@@ -259,6 +261,7 @@
     }
     const clips = [], skipped = [];
     for (let k = 0; k < files.length; k++) {
+      if (k % 5 === 0) await tick();
       checkCancel();
       const [d, path] = files[k];
       const info = await probe(P, media, path);
@@ -291,6 +294,7 @@
     }
     let done = 0;
     for (const [c, cache, r] of jobs) {
+      await tick();
       checkCancel();
       let meta;
       try {
@@ -314,6 +318,7 @@
 
     const edges = C.matchAll(clips, o.minVotes, 2.0, (f, m) => say(0.77 + 0.13 * f, m), checkCancel);
     for (let k = 0; k < edges.length; k++) {
+      if (k % 5 === 0) await tick();
       checkCancel();
       const e = edges[k];
       if (k % 10 === 0) say(0.90 + 0.07 * k / Math.max(1, edges.length), `Fine-tuning sync (${k}/${edges.length})`);

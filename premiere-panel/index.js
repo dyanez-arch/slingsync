@@ -1,16 +1,12 @@
 // SlingSync panel for Premiere Pro 2027 (UXP).
-// Step 2: pick a shoot folder → the SlingSync app syncs it → the panel imports the result.
-// Step 1 (still available): import an existing SlingSync XML.
-//
-// UXP panels can't run programs, so the panel opens a slingsync:// link (the SlingSync app
-// registers it, macOS asks the user once), and the app reports progress in
-// <folder>/.slingsync_status.json, which the panel reads.
+// Sync Shoot Folder…: the panel's own engine (engine/*.js + wasm/ssdec, a JavaScript port of
+// the desktop app's engine) syncs the folder inside Premiere, then imports the sequence.
+// Import from Shoot Folder… / Import XML File…: import an existing SlingSync XML.
 const ppro = require("premierepro");
 const { storage, shell } = require("uxp");
 const fsys = storage.localFileSystem;
 const fs = require("fs");
 
-const STATUS_FILE = ".slingsync_status.json";
 const statusBox = document.getElementById("status");
 const bar = document.getElementById("bar");
 const barFill = document.getElementById("barFill");
@@ -32,6 +28,7 @@ function setBusy(b) {
   for (const id of ["syncFolder", "fromFolder", "fromFile"]) {
     document.getElementById(id).disabled = b;
   }
+  document.getElementById("cancel").hidden = !b;
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -76,60 +73,61 @@ async function importXml(nativePath, prefix) {
   return false;
 }
 
-async function readStatus(folderPath) {
-  try {
-    return JSON.parse(await fs.readFile(folderPath + "/" + STATUS_FILE, "utf8"));
-  } catch (e) {
-    return null;                       // not written yet (or mid-write)
-  }
+// ---- the panel engine ----
+let engine = null;
+let cancelRequested = false;
+const detailBox = document.getElementById("detailLog");
+
+async function getEngine() {
+  if (engine) return engine;
+  const folder = await fsys.getPluginFolder();
+  const wasmBytes = await fs.readFile(folder.nativePath + "/wasm/ssdec.wasm");
+  const P = SlingUxpPlatform.create();
+  const media = await SlingMedia.create({ factory: SSDec, wasmBytes, read: (h, size, pos) => P.readAt(h, size, pos) });
+  engine = { P, media };
+  return engine;
+}
+
+function panelVersion() {
+  try { return "panel " + require("uxp").versions.plugin; } catch (e) { return "panel"; }
 }
 
 async function syncFolder(folderPath, folderName) {
-  const id = String(Date.now());
-  const audio = document.getElementById("audio").checked ? "1" : "0";
-  const url = "slingsync://sync?folder=" + encodeURIComponent(folderPath) +
-              "&id=" + id + "&audio=" + audio;
-  say("Opening the SlingSync app…\n(If macOS asks, allow Premiere to open SlingSync.)");
+  cancelRequested = false;
+  detailBox.textContent = "";
+  const lines = [];
   showBar(0);
-  const err = await shell.openExternal(url, "Open SlingSync to sync “" + folderName + "”");
-  if (err) {
+  say("Starting…");
+  const t0 = Date.now();
+  try {
+    const { P, media } = await getEngine();
+    const res = await SlingRun.run(P, media, folderPath, {
+      version: panelVersion(),
+      isCancelled: () => cancelRequested,
+      progress: (f, m) => { showBar(f); say("Syncing " + folderName + "…\n" + m); },
+      log: (line) => lines.push(line),
+    });
+    detailBox.textContent = lines.join("\n");
+    const synced = res.counts.synced || 0;
+    const check = res.files - synced;
+    const mins = ((Date.now() - t0) / 60000).toFixed(1);
+    const summary = `${synced} of ${res.files} clips synced by sound` +
+      (check ? `, ${check} to check (see SlingSync_report.txt)` : "") + ` · ${mins} min.\n`;
+    await importXml(res.xml, summary);
+  } catch (e) {
+    detailBox.textContent = lines.join("\n");
+    if (e && e.name === "Cancelled") say("Sync cancelled. Files already analysed are saved, so syncing again is faster.");
+    else say("Sync failed:\n" + (e && e.message ? e.message : e), "err");
+    if (!(e && e.name === "Cancelled")) detailBox.textContent += "\n\n" + (e && e.stack ? e.stack : e);
+  } finally {
     showBar(null);
-    say("Couldn't open the SlingSync app:\n" + err +
-        "\n\nIs SlingSync 1.2.0b2 or later installed in Applications?", "err");
-    return;
-  }
-  const started = Date.now();
-  let seen = false;
-  while (true) {
-    await sleep(700);
-    const st = await readStatus(folderPath);
-    if (st && st.id === id) {
-      seen = true;
-      if (st.state === "scanning" || st.state === "syncing") {
-        showBar(st.progress || 0);
-        say("Syncing " + folderName + "…\n" + (st.message || ""));
-      } else if (st.state === "done") {
-        showBar(1);
-        const summary = st.synced + " of " + st.files + " clips synced by sound" +
-          (st.check ? ", " + st.check + " to check (see the report)" : "") +
-          (st.stems && st.stems.length ? ", " + st.stems.length + " audio files written" : "") + ".\n";
-        await importXml(st.xml, summary);
-        showBar(null);
-        return;
-      } else {
-        showBar(null);
-        say((st.state === "cancelled" ? "Sync cancelled." : "Sync failed:") + "\n" + (st.message || ""),
-            st.state === "cancelled" ? "" : "err");
-        return;
-      }
-    } else if (!seen && Date.now() - started > 60000) {
-      showBar(null);
-      say("SlingSync didn't respond.\nMake sure SlingSync 1.2.0b2 or later is installed in " +
-          "Applications and that it isn't busy with another sync.", "err");
-      return;
-    }
   }
 }
+
+document.getElementById("cancel").addEventListener("click", () => {
+  cancelRequested = true;
+  say("Stopping…");
+});
 
 async function guarded(fn) {
   if (busy) return;

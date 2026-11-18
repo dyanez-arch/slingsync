@@ -8,7 +8,7 @@
            background: var(--uxp-host-background-color, #232323); }
     /* UXP panels don't scroll the body by themselves: scroll this wrapper instead */
     #page { height: 100%; overflow-y: auto; padding: 14px; box-sizing: border-box; }
-    #labOut { white-space: pre-wrap; font-size: 11px; user-select: text; max-height: 320px; overflow-y: auto;
+    #labOut, #detailLog { white-space: pre-wrap; font-size: 11px; user-select: text; max-height: 320px; overflow-y: auto;
               background: rgba(0,0,0,0.25); padding: 8px; border-radius: 6px; margin: 6px 0 0; }
     header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
     header img { width: 40px; height: 40px; }
@@ -34,17 +34,22 @@
     <img src="icons/logo.png" alt="">
     <div>
       <h1>SlingSync</h1>
-      <div class="muted">Panel prototype 0.5.1 · tests</div>
+      <div class="muted">Panel prototype 0.6 · own engine</div>
     </div>
   </header>
 
   <button id="syncFolder">Sync Shoot Folder…</button>
-  <label><input type="checkbox" id="audio"> Also export audio files (WAV)</label>
-  <div class="muted">Pick a shoot folder (one subfolder per camera or recorder). The SlingSync
-    app syncs it, then the synced sequence is imported into this project.</div>
+  <div class="muted">Pick a shoot folder with one subfolder per camera or recorder (loose files
+    also work). SlingSync lines everything up by sound, right here in Premiere, and adds the
+    synced sequence to this project.</div>
 
   <div id="bar"><div id="barFill"></div></div>
   <div id="status"></div>
+  <button id="cancel" hidden>Cancel</button>
+  <details>
+    <summary class="muted">Details (every file and match)</summary>
+    <pre id="detailLog"></pre>
+  </details>
 
   <hr>
   <div class="muted">Already synced?</div>
@@ -79,6 +84,9 @@
 </div>
   <script src="wasm/ssdec.js"></script>
   <script src="engine/media.js"></script>
+  <script src="engine/core.js"></script>
+  <script src="engine/run.js"></script>
+  <script src="engine/uxp_platform.js"></script>
   <script src="index.js"></script>
   <script src="lab.js"></script>
 </body>
