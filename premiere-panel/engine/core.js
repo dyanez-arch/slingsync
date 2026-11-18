@@ -784,15 +784,17 @@
 
   // ---- XML (engine.rate_xml, engine.build_xml) ----
   const escapeXml = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  function pyQuote(s) {                       // urllib.parse.quote(s), safe="/"
-    const bytes = new TextEncoder().encode(s);
-    let out = "";
-    for (const b of bytes) {
-      const ch = String.fromCharCode(b);
-      if (/[A-Za-z0-9_.\-~\/]/.test(ch) && b < 128) out += ch;
-      else out += "%" + b.toString(16).toUpperCase().padStart(2, "0");
-    }
-    return out;
+  // urllib.parse.quote(s) with safe="/" (UTF-8). Premiere's JavaScript has no TextEncoder,
+  // so this builds on encodeURIComponent, which escapes the same set except /!'()*.
+  function pyQuote(s) {
+    return encodeURIComponent(s).replace(/%2F/g, "/")
+      .replace(/[!'()*]/g, (c) => "%" + c.charCodeAt(0).toString(16).toUpperCase());
+  }
+  // UTF-8 bytes -> string (no TextDecoder in Premiere's JavaScript)
+  function utf8Decode(bytes) {
+    let bin = "";
+    for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+    try { return decodeURIComponent(escape(bin)); } catch (e) { return bin; }
   }
   function rateXml(fps) {
     const ntsc = Math.abs(fps - pyRound(fps) * 1000 / 1001) < 0.01 && Math.abs(fps - pyRound(fps)) > 0.001;
@@ -1028,7 +1030,7 @@
   const api = { SR, FRAME_S, CACHE_DIR, VIDEO_EXT, AUDIO_EXT, Cancelled, pyRound, pyFixed, percentile, median,
     parseIso, dateCandidates, parseTc, resolveDates, probeFromInfo, fft, fingerprint, matchAll, refine,
     place, buildXml, rateXml, tc, reportText, proxyBase, looseDevice, deviceEntry, isMedia, skipDir,
-    basename, ext, pyQuote };
+    basename, ext, pyQuote, utf8Decode };
   root.SlingCore = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

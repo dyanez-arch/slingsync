@@ -126,7 +126,7 @@
   async function analyze(P, media, clip, cacheBase, refCh, silenceDb, flatDb, checkCancel) {
     const metaP = cacheBase + ".json", monoP = cacheBase + "_mono.f32", fpP = cacheBase + "_fp.bin";
     if (await P.exists(metaP) && await P.exists(fpP)) {
-      const meta = JSON.parse(new TextDecoder().decode(await P.readFile(metaP)));
+      const meta = JSON.parse(C.utf8Decode(await P.readFile(metaP)));
       if (meta.fp) {
         const b = await P.readFile(fpP), n = meta.fp_n;
         const buf = b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
