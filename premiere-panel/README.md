@@ -8,6 +8,8 @@ A panel inside Premiere Pro that brings SlingSync results straight into the open
 | 2 | **Sync Shoot Folder…**: pick a folder, the SlingSync app syncs it, the panel shows progress and imports the sequence | Built (panel 0.2 + app 1.2.0b2); app side tested offscreen, not yet in Premiere |
 | 3 | Sync from Premiere bins instead of folders | Planned |
 
+**Direction (2026-11-17):** the panel should work on its own, without the SlingSync app, by running a JavaScript version of the sync engine inside Premiere. The standalone app stays for people without Premiere. Panel 0.3 adds temporary **Developer tests** to check this is feasible in Premiere: reading WAV files directly, converting other formats' audio with Media Encoder (`EncoderManager.encodeFile` with Premiere's `WAV_Mono_16bit_16kHz.epr` preset), and JavaScript speed for the analysis. Steps 2 and 3 will be rebuilt on the JavaScript engine.
+
 Requires **Premiere Pro 2027 (27.0) or later**. It uses Adobe's UXP plugin system, which replaces CEP. The SlingSync app does the actual syncing, so the panel stays small.
 
 ## Try it (development install)
