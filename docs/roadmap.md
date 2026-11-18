@@ -4,8 +4,8 @@ What's planned next for SlingSync, roughly in order. Ideas and votes are welcome
 
 ## Next
 
-### Premiere Pro plug-in: sync from Premiere bins (started: 0.16.0, *Sync Selected Bin*)
-Built and tested against a simulated Premiere; next is testing inside Premiere. Besides a **folder on disk**, the plug-in syncs clips that are **already in the Premiere project**: select a bin (one sub-bin per camera or recorder, like the folders today) or a set of clips, click Sync, and get the synced sequence. Same engine, same results; the plug-in reads each clip's media path from Premiere instead of scanning a folder. Useful when the footage is already imported and organised, or spread over several drives.
+### Premiere Pro plug-in: sync inside the project (built: 0.16.0 – 0.17.0)
+*Sync Selected Bin* (builds the sequence from your own clips, no duplicates) and *Sync Timeline* (the open sequence, or only the selected clips) are built and tested against a simulated Premiere; next is testing inside Premiere. Besides a **folder on disk**, the plug-in syncs clips that are **already in the Premiere project**: select a bin (one sub-bin per camera or recorder, like the folders today) or a set of clips, click Sync, and get the synced sequence. Same engine, same results; the plug-in reads each clip's media path from Premiere instead of scanning a folder. Useful when the footage is already imported and organised, or spread over several drives.
 
 ### Screenshots
 Pictures of the app and the plug-in in the README and on the release page, so people can see what they're getting before downloading.
@@ -34,6 +34,7 @@ SlingSync stays free. When donations on **[Ko-fi](https://ko-fi.com/pisdronio)**
 Mixed frame rates in one project (23.976 / 25 / 29.97 / 50), variable-frame-rate phone footage, NAS and read-only drives (the analysis cache is written inside the shoot folder), and very long recordings on 8 GB Macs. See *Not tested yet* in the [testing log](testing.md).
 
 ## Ideas, not yet planned
+- Sync Timeline: the device list and Options step (it uses the recommended settings today), and moving clips onto separate tracks automatically when they share one.
 - Remember the last settings in the plug-in.
 - Show the report inside the plug-in, with links to the clips to check.
 - Faster analysis of 4K camera files on slow drives (read the recorder's audio first, cameras in the background).

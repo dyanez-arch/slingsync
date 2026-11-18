@@ -28,6 +28,7 @@ function setBusy(b) {
   busy = b;
   document.getElementById("syncFolder").disabled = b;
   document.getElementById("syncBin").disabled = b;
+  document.getElementById("syncTimeline").disabled = b;
   document.getElementById("compactFolder").disabled = b;
   document.getElementById("startSync").disabled = b;
   document.getElementById("cancel").hidden = !b;
@@ -299,6 +300,20 @@ async function syncFolder(folderPath, folderName, settings, job) {
     const summary = `${synced} of ${res.files} clips synced by sound` +
       (check ? `, ${check} to check (see ${res.report.split("/").pop()})` : "") + ` · ${mins} min.` +
       (res.stems && res.stems.length ? `\n${res.stems.length} audio files in “${res.stems_dir.split("/").pop()}”.` : "") + "\n";
+    if (job.devices) {
+      // Build the sequence from the project's own clips (no XML import, no duplicate clips);
+      // if Premiere won't cooperate, fall back to importing the XML.
+      try {
+        say(summary + "Building the sequence from your clips…");
+        const note = await buildFromBin(res, folderName, (l) => lines.push(l));
+        detailBox.textContent = lines.join("\n");
+        say(summary + note, "ok");
+        return;
+      } catch (e) {
+        lines.push("Building from the bin's clips failed (" + (e && e.message ? e.message : e) + "): importing the XML instead");
+        detailBox.textContent = lines.join("\n");
+      }
+    }
     await importXml(res.xml, summary, { shootName: job.devices ? folderName + " (synced)" : folderName, deviceOf: deviceMapFromResult(res) });
   } catch (e) {
     detailBox.textContent = lines.join("\n");
@@ -391,6 +406,7 @@ function showSetup(show) {
   document.getElementById("setup").hidden = !show;
   document.getElementById("syncFolder").hidden = show;
   document.getElementById("syncBin").hidden = show;
+  document.getElementById("syncTimeline").hidden = show;
   document.getElementById("compactFolder").hidden = show;
 }
 
@@ -669,6 +685,304 @@ async function compactActiveSequence(log) {
         `Your original sequence is unchanged.`, "ok");
   }
 }
+
+// ---- Arranging clips in a sequence (Sync Timeline, Sync Selected Bin) ----
+// Every clip with its file, trim (in point) and a key that stays the same when clips move
+// (track + file + in point). Fresh objects from project handle P.
+async function timelineItems(P, guid) {
+  const seq = await sequenceById(P, guid);
+  if (!seq) throw new Error("the sequence disappeared");
+  const CLIP = (ppro.Constants && ppro.Constants.TrackItemType && ppro.Constants.TrackItemType.CLIP) || 1;
+  const out = [], seen = new Map();
+  for (const [kind, count, get] of [["v", await seq.getVideoTrackCount(), (i) => seq.getVideoTrack(i)],
+                                    ["a", await seq.getAudioTrackCount(), (i) => seq.getAudioTrack(i)]]) {
+    for (let i = 0; i < count; i++) {
+      for (const it of await (await get(i)).getTrackItems(CLIP, false)) {
+        let path = null;
+        try { path = await ppro.ClipProjectItem.cast(await it.getProjectItem()).getMediaFilePath(); } catch (e) { /* not a media clip */ }
+        const inPt = ticksOf(await it.getInPoint());
+        const base = `${kind}${i}|${path}|${inPt}`;
+        const n = seen.get(base) || 0; seen.set(base, n + 1);
+        out.push({ key: `${base}#${n}`, it, kind, track: i, path, inPt,
+          start: ticksOf(await it.getStartTime()), end: ticksOf(await it.getEndTime()) });
+      }
+    }
+  }
+  return out;
+}
+async function frameTicks(guid) {
+  try { const n = Number(await (await sequenceById(await activeProject(), guid)).getTimebase()); if (n > 0) return n; } catch (e) { /* fall back */ }
+  return TICKS / 25;
+}
+
+// Move clips so each one starts at goal.get(key). Like Compact Timeline: a first clip is moved
+// alone to see whether linked clips follow it; if not, the rest go in one edit.
+async function moveAllTo(guid, goal, order, log, label) {
+  const read = async () => timelineItems(await activeProject(), guid);
+  const pendingOf = (items) => items.filter((x) => goal.has(x.key) && x.start !== goal.get(x.key)).sort(order);
+  const act = (x) => x.it.createMoveAction(ppro.TickTime.createWithTicks(String(goal.get(x.key) - x.start)));
+  const moveSome = (n) => edit(async (Q) => pendingOf(await timelineItems(Q, guid)).slice(0, n), (list) => list.map(act), "SlingSync: " + label);
+  let items = await read();
+  let pending = pendingOf(items);
+  if (!pending.length) return;
+  const was = new Map(items.map((x) => [x.key, x.start]));
+  const first = pending[0];
+  await moveSome(1);
+  items = await read();
+  const landed = items.find((x) => x.key === first.key);
+  const changed = items.filter((x) => x.start !== was.get(x.key)).length;
+  log(`${label}: probe ${first.key} → ${landed ? (landed.start / TICKS).toFixed(3) : "?"} s (wanted ${(goal.get(first.key) / TICKS).toFixed(3)}), ${changed} clip(s) moved`);
+  if (!landed || landed.start !== goal.get(first.key)) throw new Error("Premiere moved a clip differently than expected, so I stopped. Delete the “(synced)” copy; your original is unchanged.");
+  if (changed === 1) {
+    await moveSome(Infinity);
+  } else {
+    for (let n = 0; n < 20000; n++) {
+      pending = pendingOf(await read());
+      if (!pending.length) break;
+      if (n % 10 === 0) say(`${label}… ${pending.length} clips to go`);
+      await moveSome(1);
+    }
+  }
+}
+
+// Put every clip at targetOf(item) (ticks, or null = no sync position). Two steps so nothing
+// ever lands on another clip: park everything after the end, then move each into place.
+// Returns { moved, unplaced, overlaps }.
+// Plan where every clip goes (ticks). only: optional Set of keys (selected clips): then only
+// those move, every other clip stays where it is, and the selection is synced around its
+// earliest clip, which keeps its place. Returns { target, overlaps, unplaced }.
+async function planTimeline(guid, targetOf, only) {
+  const frame = await frameTicks(guid);
+  const snap = (t) => Math.round(t / frame) * frame;
+  const items = await timelineItems(await activeProject(), guid);
+  const movable = only ? items.filter((x) => only.has(x.key)) : items;
+  const target = new Map(), unplaced = [], raw = new Map();
+  for (const x of movable) { const t = targetOf(x); if (t === null || t === undefined) unplaced.push(x); else raw.set(x.key, t); }
+  let shift = 0;
+  if (only && raw.size) {                     // keep the earliest selected clip where it is
+    const ref = movable.filter((x) => raw.has(x.key)).sort((p, q) => p.start - q.start)[0];
+    shift = ref.start - raw.get(ref.key);
+    const lowest = Math.min(...[...raw.values()].map((t) => t + shift));
+    if (lowest < 0) shift -= lowest;
+  }
+  for (const [k, t] of raw) target.set(k, snap(Math.max(0, t + shift)));
+  let syncedEnd = 0;
+  for (const x of movable) if (target.has(x.key)) syncedEnd = Math.max(syncedEnd, target.get(x.key) + (x.end - x.start));
+  if (unplaced.length && !only) {             // no sync position: keep their layout, after the synced part
+    const from = Math.min(...unplaced.map((x) => x.start)), at = snap(syncedEnd + 10 * TICKS);
+    for (const x of unplaced) target.set(x.key, snap(at + x.start - from));
+  }
+  const goalOf = (x) => (target.has(x.key) ? target.get(x.key) : x.start);   // others stay put
+  const overlaps = [], byTrack = new Map();   // two clips on one track at once can't be placed
+  for (const x of items) { const k = x.kind + x.track; if (!byTrack.has(k)) byTrack.set(k, []); byTrack.get(k).push(x); }
+  for (const [k, list] of byTrack) {
+    list.sort((p, q) => goalOf(p) - goalOf(q));
+    for (let i = 0; i + 1 < list.length; i++) {
+      const p = list[i], q = list[i + 1];
+      if (goalOf(p) + (p.end - p.start) > goalOf(q)) overlaps.push(`${k.startsWith("v") ? "V" : "A"}${Number(k.slice(1)) + 1}: ${(p.path || "?").split("/").pop()} / ${(q.path || "?").split("/").pop()}`);
+    }
+  }
+  return { target, overlaps, unplaced: unplaced.length, curEnd: Math.max(...items.map((x) => x.end)), syncedEnd };
+}
+
+// Carry out a plan in sequence `guid` (same clips as the planned one, e.g. its copy). Two steps
+// so nothing ever lands on another clip: park the moving clips after the end, then move each
+// into place.
+async function applyPlan(guid, plan, log) {
+  const { target } = plan;
+  const frame = await frameTicks(guid);
+  const items = await timelineItems(await activeProject(), guid);
+  const D = Math.round((Math.max(plan.curEnd, ...[...target.values()]) + plan.syncedEnd + 60 * TICKS) / frame) * frame;
+  const park = new Map(items.filter((x) => target.has(x.key)).map((x) => [x.key, x.start + D]));
+  await moveAllTo(guid, park, (p, q) => q.start - p.start, log, "Making room");
+  await moveAllTo(guid, target, (p, q) => target.get(p.key) - target.get(q.key), log, "Syncing clips");
+  const wrong = (await timelineItems(await activeProject(), guid)).filter((x) => target.has(x.key) && x.start !== target.get(x.key));
+  log(`check: ${wrong.length} clips not where planned`);
+  if (wrong.length) throw new Error(`${wrong.length} clips didn't land where planned. Check the “(synced)” copy before using it.`);
+}
+
+// ---- Sync Selected Bin, built from the project's own clips ----
+// 1. a new sequence from the first camera clip (so it gets the camera's settings), in a bin
+//    "<bin> (synced)"; 2. every other clip added after the end, each camera/recorder (and each
+//    lane of overlapping clips) on its own tracks; 3. everything moved into sync (planTimeline/
+//    applyPlan, as Sync Timeline).
+async function clipItemsByPath(P) {             // media path -> ClipProjectItem, whole project
+  const map = new Map();
+  const walk = async (folder) => {
+    for (const x of await describe(await folder.getItems())) {
+      if (x.bin) await walk(x.bin);
+      else if (x.path && !map.has(normPath(x.path))) map.set(normPath(x.path), x.item);
+    }
+  };
+  await walk(await P.getRootItem());
+  return map;
+}
+
+async function buildFromBin(res, binName, log) {
+  const clips = [...res.clips].sort((a, b) => a.start - b.start);
+  // track plan: each device lane gets a video track (cameras) and its own audio tracks
+  const laneKey = (c) => c.dev + "|" + (c.lane || 0);
+  const lanes = [];
+  for (const c of [...res.clips].sort((a, b) => (b.has_video - a.has_video) || (a.dev - b.dev) || ((a.lane || 0) - (b.lane || 0)))) {
+    if (!lanes.find((l) => l.key === laneKey(c))) lanes.push({ key: laneKey(c), video: !!c.has_video, nch: 0 });
+  }
+  for (const c of res.clips) { const l = lanes.find((x) => x.key === laneKey(c)); l.nch = Math.max(l.nch, c.nch || 0, 1); }
+  let v = 0, a = 0;
+  for (const l of lanes) { l.v = l.video ? v++ : 0; l.a = a; a += l.nch; }
+  const laneOf = (c) => lanes.find((l) => l.key === laneKey(c));
+  const first = clips.find((c) => laneOf(c).v === 0 && laneOf(c).a === 0) || clips[0];
+  log(`Building from the bin's clips: ${clips.length} clips, ${lanes.length} device lanes, ${v} video + ${a} audio tracks`);
+  // 1. bin + sequence
+  const seqName = binName + " (synced)";
+  let P = await activeProject();
+  const taken = new Set((await describe(await (await P.getRootItem()).getItems())).filter((x) => x.bin).map((x) => x.name));
+  let outBin = seqName;
+  for (let k = 2; taken.has(outBin); k++) outBin = `${seqName} ${k}`;
+  await edit(async (Q) => Q.getRootItem(), (root) => [root.createBinAction(outBin, false)], "SlingSync: synced bin");
+  try {
+    return await buildInto(outBin, seqName, clips, first, laneOf, log);
+  } catch (e) {                                 // clean up what was started, then let the caller fall back
+    try { await edit(async (Q) => ({ root: await Q.getRootItem(), bin: await findBin(Q, [outBin]) }),
+      ({ root, bin }) => (bin ? [root.createRemoveItemAction(bin)] : []), "SlingSync: clean up"); } catch (e2) { log("clean-up failed: " + e2); }
+    throw e;
+  }
+}
+
+async function buildInto(outBin, seqName, clips, first, laneOf, log) {
+  let P = await activeProject();
+  const items = await clipItemsByPath(P);
+  const firstItem = items.get(normPath(first.path));
+  if (!firstItem) throw new Error("couldn't find " + first.name + " in the project");
+  const before = new Set((await P.getSequences()).map((q) => String(q.guid)));
+  await P.createSequenceFromMedia(seqName, [ppro.ClipProjectItem.cast(firstItem)], await findBin(P, [outBin]));
+  let guid = null;
+  for (let k = 0; k < 20 && !guid; k++) {
+    await sleep(150);
+    const q = (await (await activeProject()).getSequences()).find((x) => !before.has(String(x.guid)));
+    if (q) guid = String(q.guid);
+  }
+  if (!guid) throw new Error("Premiere didn't create the sequence");
+  const res = { clips };
+  // 2. add the other clips after the end, each on its lane's tracks
+  let k = 0;
+  for (const c of clips) {
+    if (c === first) continue;
+    if (++k % 10 === 0) say(`Building the sequence from your clips… ${k}/${clips.length - 1}`);
+    const lane = laneOf(c);
+    await edit(async (Q) => {
+      const seq = await sequenceById(Q, guid);
+      const its = await timelineItems(Q, guid);
+      const end = its.length ? Math.max(...its.map((x) => x.end)) : 0;
+      const item = (await clipItemsByPath(Q)).get(normPath(c.path));
+      if (!item) throw new Error("couldn't find " + c.name + " in the project");
+      return { editor: ppro.SequenceEditor.getEditor(seq), item, end };
+    }, ({ editor, item, end }) => [editor.createInsertProjectItemAction(item, ppro.TickTime.createWithTicks(String(end + TICKS)), lane.v, lane.a, true)],
+    "SlingSync: add clip");
+  }
+  const built = await timelineItems(await activeProject(), guid);
+  const missing = clips.filter((c) => !built.some((x) => normPath(x.path) === normPath(c.path)));
+  log(`built: ${built.length} clip parts on the timeline; missing files: ${missing.length}`);
+  if (missing.length) throw new Error(`${missing.length} clips didn't make it onto the new sequence`);
+  // 3. into sync
+  const startOf = new Map(res.clips.map((c) => [normPath(c.path), c.start]));
+  const plan = await planTimeline(guid, (x) => (startOf.has(normPath(x.path)) ? startOf.get(normPath(x.path)) * TICKS + x.inPt : null), null);
+  if (plan.overlaps.length) throw new Error("clips would overlap on a track: " + plan.overlaps.slice(0, 3).join("; "));
+  await applyPlan(guid, plan, log);
+  try { const Q = await activeProject(); await Q.openSequence(await sequenceById(Q, guid)); } catch (e) { log("open failed: " + e); }
+  return `Built “${seqName}” from your own clips (in the “${outBin}” bin): no duplicates.`;
+}
+
+// ---- Sync Timeline: sync the clips in the open sequence (in a copy), one track per device ----
+async function syncTimeline() {
+  const lines = [], log = (l) => lines.push(l);
+  detailBox.textContent = "";
+  try {
+    const P0 = await activeProject();
+    if (!P0) { say("Open a Premiere project first.", "err"); return; }
+    if (!P0.path) { say("Save the Premiere project first: SlingSync keeps its files next to the project file.", "err"); return; }
+    const seq0 = await P0.getActiveSequence();
+    if (!seq0) { say("Open the sequence you want to sync first.", "err"); return; }
+    const name = seq0.name, srcGuid = String(seq0.guid);
+    // 0. clips selected in the timeline? Then only those are synced.
+    let items0 = await timelineItems(P0, srcGuid);
+    let only = null;
+    try {
+      const picked = await (await seq0.getSelection()).getTrackItems();
+      if (picked && picked.length) {
+        only = new Set();
+        for (const it of picked) {
+          const kind = typeof it.createAddVideoTransitionAction === "function" ? "v" : "a";
+          const track = await it.getTrackIndex();
+          const start = ticksOf(await it.getStartTime());
+          const hit = items0.find((x) => x.kind === kind && x.track === track && x.start === start);
+          if (hit) only.add(hit.key);
+        }
+        log(`Selected clips: ${only.size}`);
+        if (!only.size) only = null;
+      }
+    } catch (e) { log("couldn't read the timeline selection (" + e + "): syncing the whole timeline"); }
+    // 1. which file is on which track: a camera's device is its video track, a recorder's its audio track
+    if (only) items0 = items0.filter((x) => only.has(x.key));
+    const isMedia = (p) => p && SlingCore.isMedia(p.split("/").pop());
+    const devOf = new Map();
+    for (const x of items0) if (x.kind === "v" && isMedia(x.path) && !devOf.has(x.path)) devOf.set(x.path, `Video ${x.track + 1}`);
+    for (const x of items0) if (x.kind === "a" && isMedia(x.path) && !devOf.has(x.path)) devOf.set(x.path, `Audio ${x.track + 1}`);
+    if (!devOf.size) { say("The open sequence has no video or audio clips.", "err"); return; }
+    const names = [...new Set(devOf.values())].sort((a, b) => (a[0] !== b[0] ? (a[0] === "V" ? -1 : 1) : parseInt(a.split(" ")[1]) - parseInt(b.split(" ")[1])));
+    const devices = names.map((n) => SlingCore.deviceEntry(n, [...devOf].filter(([, d]) => d === n).map(([p]) => p).sort()));
+    log("Devices from tracks: " + devices.map((d) => `${d.name} (${d.files.length})`).join(", "));
+    // 2. sync
+    const outDir = P0.path.split("/").slice(0, -1).join("/") + "/SlingSync";
+    const { P, media } = await getEngine();
+    if (!(await P.exists(outDir))) await P.mkdir(outDir);
+    const all = devices.flatMap((d) => d.files);
+    showBar(0);
+    const res = await SlingRun.run(P, media, commonDir(all), {
+      version: panelVersion(), devices, name: name + " (synced)",
+      output: `${outDir}/${name}_synced.xml`, reportPath: `${outDir}/${name}_SlingSync_report.txt`, cacheDir: `${outDir}/.slingsync_cache`,
+      isCancelled: () => cancelRequested,
+      progress: (f, m) => { showBar(0.8 * f); say("Syncing “" + name + "”…\n" + m); },
+      log,
+    });
+    const startOf = new Map(res.clips.map((c) => [c.path, c.start]));
+    // 3. plan on the original first: if clips would collide, stop before changing anything
+    const plan = await planTimeline(srcGuid, (x) => (startOf.has(x.path) ? (startOf.get(x.path) * TICKS + x.inPt) : null), only);
+    if (plan.overlaps.length) {
+      say("Can't sync this timeline: after syncing, clips would sit on top of each other on the same track:\n" +
+          plan.overlaps.slice(0, 5).join("\n") + (plan.overlaps.length > 5 ? `\n… ${plan.overlaps.length - 5} more` : "") +
+          "\nPut each camera and recorder on its own track(s)" + (only ? ", or move the other clips out of the way," : "") +
+          " and try again. Nothing was changed.", "err");
+      return;
+    }
+    // 4. copy the sequence and move its clips into sync
+    say("Moving the clips into sync in a copy of “" + name + "”…");
+    showBar(0.85);
+    const before = new Set((await (await activeProject()).getSequences()).map((q) => String(q.guid)));
+    await edit((Q) => sequenceById(Q, srcGuid), (sq) => [sq.createCloneAction()], "SlingSync: copy sequence");
+    let guid = null;
+    for (let k = 0; k < 20 && !guid; k++) {
+      await sleep(150);
+      const q = (await (await activeProject()).getSequences()).find((x) => !before.has(String(x.guid)));
+      if (q) guid = String(q.guid);
+    }
+    if (!guid) throw new Error("Premiere didn't make a copy of the sequence, so nothing was changed.");
+    try { await edit(async (Q) => (await sequenceById(Q, guid)).getProjectItem(), (pi) => [pi.createSetNameAction(name + " (synced)")], "SlingSync: name copy"); } catch (e) { log("rename failed: " + e); }
+    await applyPlan(guid, plan, log);
+    showBar(null);
+    try { const Q = await activeProject(); await Q.openSequence(await sequenceById(Q, guid)); } catch (e) { log("open failed: " + e); }
+    const synced = res.counts.synced || 0;
+    say(`“${name} (synced)”: ${only ? `${only.size} selected clips, ` : ""}${synced} of ${res.files} files synced by sound` +
+        (res.files - synced ? `, ${res.files - synced} to check (see ${res.report.split("/").pop()})` : "") +
+        (plan.unplaced ? `.\n${plan.unplaced} clips had no sync position and were ${only ? "left where they were" : "put after the end"}` : "") +
+        ".\nYour original sequence is unchanged.", "ok");
+  } finally {
+    detailBox.textContent = lines.join("\n");
+    document.getElementById("detailsWrap").hidden = false;
+    showBar(null);
+  }
+}
+
+document.getElementById("syncTimeline").addEventListener("click", () => guarded(syncTimeline));
 
 document.getElementById("compactFolder").addEventListener("click", () => guarded(async () => {
   const lines = [];

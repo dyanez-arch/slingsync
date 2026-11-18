@@ -16,7 +16,7 @@
     .muted { color: #9a9a9a; }
     button { display: block; width: 100%; margin: 8px 0; padding: 8px; font-size: 12px; }
     #syncFolder { font-weight: bold; padding: 12px; font-size: 13px; margin-bottom: 4px; }
-    #compactFolder, #syncBin { margin-top: 0; margin-bottom: 4px; }
+    #compactFolder, #syncBin, #syncTimeline { margin-top: 0; margin-bottom: 4px; }
     .hint { margin: 2px 0 4px; }
     label { display: flex; align-items: flex-start; gap: 6px; margin: 8px 0 2px; color: #9a9a9a; }
     .small { font-size: 11px; }
@@ -55,10 +55,13 @@
 
   <button id="syncFolder">Sync a Shoot Folder…</button>
   <button id="syncBin">Sync Selected Bin</button>
+  <button id="syncTimeline">Sync Timeline</button>
   <button id="compactFolder">Compact Timeline</button>
   <div class="muted hint"><b>Sync a Shoot Folder</b>: pick the shoot folder (one subfolder per camera
     or recorder), check what was found, then Sync. <b>Sync Selected Bin</b>: the same for clips
-    already in this project: select the shoot's bin (one sub-bin per camera or recorder) first. <b>Compact Timeline</b>: makes a copy of the open sequence with every gap
+    already in this project: select the shoot's bin (one sub-bin per camera or recorder) first.
+    <b>Sync Timeline</b>: syncs the clips in the open sequence (each camera or recorder on its own
+    track) in a copy; if clips are selected, only those. <b>Compact Timeline</b>: makes a copy of the open sequence with every gap
     where nothing was recording cut out, for review or a transcript.</div>
 
   <!-- step 2 of Sync a Shoot: what was found, and settings -->

@@ -35,7 +35,8 @@ SlingSync comes in two forms. They do the same job (line up cameras and recorder
 | Sync a shoot folder by sound → XML + report | ✅ | ✅ and imports the sequence into the open project |
 | Export aligned audio files (WAV per microphone) | ✅ | ✅ |
 | Compact timeline (cut out every stretch where nothing records) | ✅ as a second XML (`…_compact.xml`) | ✅ on **any open sequence**: makes a "(compact)" copy |
-| Sync clips already in a Premiere project (from a bin) | No | ✅ *Sync Selected Bin* (0.16.0) |
+| Sync clips already in a Premiere project (from a bin) | No | ✅ *Sync Selected Bin*, built from your own clips (0.17.0) |
+| Sync the clips in an open sequence, or only the selected ones | No | ✅ *Sync Timeline* (0.17.0) |
 | Import a folder that was synced before | (File → Import in Premiere) | ✅ *Import a synced folder* |
 | Clips sorted into a bin per device in the Project panel | No (Premiere puts them in one bin) | ✅ (0.15.0) |
 | Per-device "Sync using" channel, frame-rate choice, silent-channel options | ✅ | ✅ (0.13.0: device list and Options before syncing) |
