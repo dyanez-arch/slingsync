@@ -1,8 +1,20 @@
 # Changelog
 
-Every build that reaches anyone gets its own version number and section here. Test builds are `1.2.0b1`, `1.2.0b2`… and the release is `1.2.0`. The Premiere Pro plug-in has its own version (in `premiere-plugin/manifest.json`), listed under each app version it ships with. See [versioning](docs/development.md#versioning). The app's **About** box and every report show the exact version and build.
+Every build that reaches anyone gets its own version number and section here. Test builds are `1.2.1b1`, `1.2.1b2`… and the release is `1.2.1`. The Premiere Pro plug-in has its own version (in `premiere-plugin/manifest.json`), listed under each app version it ships with. See [versioning](docs/development.md#versioning). The app's **About** box and every report show the exact version and build.
 
 What was tested with each build is in the [testing log](docs/testing.md).
+
+## 1.2.1 (2026-11-18)
+
+Everything in 1.2.1b1 below, with the **Premiere Pro plug-in 0.13.2** (`SlingSync-PremierePro-plugin-0.13.2.ccx`) next to the DMG.
+
+**Highlights**
+- **Better results when one folder holds several recorders** (`Audio/Boom`, `Audio/Ed Lav`…): each becomes its own device. On a real shoot: 59 → 67 clips synced by sound, timeline 72 h → 24.5 h.
+- **More exact placement** in the app (the last step could stop early and leave clips a few ms off).
+- **Plug-in settings like the app:** after picking a shoot folder, the plug-in lists the devices found, with a *Sync using* choice per device and Options (frame rate, silent channels, re-analyse, audio export).
+- "Panel" is now called the **Premiere Pro plug-in**; GitHub has *Report a problem* and *Suggest a feature* forms.
+
+Tested on Dani's Mac before release: the plug-in sync in 0.13.1. Not yet tried on Dani's Mac: the 1.2.1 app build and the plug-in 0.13.2 menus (tested against a simulated Premiere). See the [testing log](docs/testing.md).
 
 ## 1.2.1b1 (test build)
 

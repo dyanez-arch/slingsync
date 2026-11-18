@@ -24,7 +24,7 @@ Tested on real documentary footage and checked in Premiere Pro. See the [testing
 - ✅ Premiere Pro plug-in: synced shoots inside Premiere Pro 2027 with no app, results identical to the app; Compact Timeline on a 181-clip day.
 - ⏳ Not yet tested: the packaged app on other Macs, mixed frame rates, NAS drives, Intel Macs.
 
-The current release is **v1.2.0**: desktop app plus the Premiere Pro 2027 plug-in. What's new is in the [changelog](CHANGELOG.md).
+The current release is **v1.2.1**: desktop app plus the Premiere Pro 2027 plug-in. What's new is in the [changelog](CHANGELOG.md).
 
 ## Documentation
 

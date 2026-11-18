@@ -8,7 +8,7 @@ SlingSync comes in two forms. They do the same job (line up cameras and recorder
 | Who it's for | Anyone: Premiere editors, other NLEs that read FCP7 XML, podcasters and audio editors (audio-only export) | Premiere Pro 2027+ editors who want to sync without leaving Premiere |
 | Needs Premiere? | No | Yes, Premiere Pro 2027 (27.0) or later |
 | Result | `…_synced.xml` you import, a report, optional aligned WAVs | The synced sequence appears directly in the open project |
-| Status | **Released** (v1.2.0), tested on real shoots | **Working prototype** (0.10): syncs inside Premiere on its own; installs from a `.ccx` |
+| Status | **Released** (v1.2.1), tested on real shoots | **Working prototype** (0.13): syncs inside Premiere on its own; installs from a `.ccx` |
 | Code | [`slingsync/`](../slingsync) (Python) | [`premiere-plugin/`](../premiere-plugin) (JavaScript + WebAssembly) |
 | Download | [Releases](https://github.com/dyanez-arch/slingsync/releases) page (`.dmg`) | `.ccx` file next to the DMG in builds and releases: double-click to install |
 

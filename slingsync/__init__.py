@@ -2,7 +2,7 @@
 # Version scheme (see docs/development.md#versioning):
 #   test builds 1.1.0b1, 1.1.0b2, ...  ->  release 1.1.0  ->  fixes 1.1.1, features 1.2.0
 # Bump this for every build you hand to someone, and add a CHANGELOG section for it.
-__version__ = "1.2.1b1"
+__version__ = "1.2.1"
 
 try:                                    # written by scripts/build_mac.sh for app builds
     from ._build import BUILD
