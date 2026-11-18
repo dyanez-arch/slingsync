@@ -183,6 +183,64 @@
     log("\nWebAssembly works ✅");
   });
 
+  // ---- Test 6: the panel's own decoder (FFmpeg in WebAssembly) on any media file ----
+  btn("labDecoder", async () => {
+    log("Test 6. Pick any video or audio file…");
+    const f = await lfs.getFileForOpening();
+    if (!f) return;
+    const path = f.nativePath;
+    log("File: " + path);
+    await sleep(50);
+    const folder = await lfs.getPluginFolder();
+    const wasmBytes = await fs.readFile(folder.nativePath + "/wasm/ssdec.wasm");
+    log("Decoder loaded: " + (wasmBytes.byteLength / 1e6).toFixed(1) + " MB");
+    const fd = await fs.open(path, "r");
+    let reads = 0, bytes = 0;
+    const read = async (h, size, pos) => {
+      const ab = new ArrayBuffer(size);
+      const r = await fs.read(fd, ab, 0, size, pos);
+      const n = typeof r === "number" ? r : (r && typeof r.bytesRead === "number" ? r.bytesRead : size);
+      reads++; bytes += n;
+      return new Uint8Array(ab, 0, n);
+    };
+    const media = await SlingMedia.create({ factory: SSDec, wasmBytes, read });
+    log("WebAssembly started.");
+    const size = (await fs.lstat(path)).size;
+    const t0 = now();
+    const info = await media.open(1, size);
+    if (!info) { log("FFmpeg could not open this file ❌"); return; }
+    const aud = info.streams.filter((s) => s.type === "audio");
+    const vid = info.streams.find((s) => s.type === "video");
+    log(`Opened: ${info.format}, ${(info.duration / 60).toFixed(1)} min` +
+        (vid ? `, video ${vid.width}x${vid.height} ${vid.fps.toFixed(3)} fps` : ""));
+    log("Audio: " + (aud.length ? aud.map((s) => `${s.codec} ${s.channels}ch ${s.rate}Hz`).join(" + ") : "none"));
+    const tags = Object.assign({}, info.tags, ...info.streams.map((s) => s.tags));
+    for (const k of ["timecode", "creation_time", "date", "origination_date", "origination_time", "time_reference"]) {
+      if (tags[k]) log(`  ${k}: ${tags[k]}`);
+    }
+    if (!aud.length) { media.close(); return; }
+    const ch = media.start(8000);
+    const sumsq = new Float64Array(ch);
+    let frames = 0, last = now();
+    for (let b; (b = await media.read(8000)); ) {
+      for (let i = 0; i < b.data.length; i++) sumsq[i % ch] += b.data[i] * b.data[i];
+      frames += b.frames;
+      if (now() - last > 1000) {
+        last = now();
+        out.textContent = out.textContent.replace(/\nDecoding:.*$/, "") + `\nDecoding: ${(frames / 8000 / 60).toFixed(1)} min…`;
+        await sleep(0);
+      }
+    }
+    media.close();
+    if (fs.close) await fs.close(fd);
+    out.textContent = out.textContent.replace(/\nDecoding:.*$/, "");
+    const secs = (now() - t0) / 1000;
+    log(`Decoded ${(frames / 8000 / 60).toFixed(1)} min of audio (${ch} ch) in ${secs.toFixed(1)} s`);
+    log(`Read ${(bytes / 1e6).toFixed(0)} MB of ${(size / 1e6).toFixed(0)} MB in ${reads} reads`);
+    log("Level per channel (dBFS RMS): " + Array.from(sumsq).map((s) => (10 * Math.log10(s / frames + 1e-12)).toFixed(1)).join(", "));
+    log("\nPanel decoder works ✅");
+  });
+
   // ---- Test 3: JavaScript speed for the sync maths (FFT spectrogram) ----
   btn("labDsp", async () => {
     log("Test 3 started…");

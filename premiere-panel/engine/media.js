@@ -57,6 +57,6 @@
   }
 
   const api = { create };
-  if (typeof module !== "undefined" && module.exports) module.exports = api;
-  else root.SlingMedia = api;
+  root.SlingMedia = api;                                   // panel: <script> global
+  if (typeof module !== "undefined" && module.exports) module.exports = api;   // Node tests
 })(typeof globalThis !== "undefined" ? globalThis : this);
