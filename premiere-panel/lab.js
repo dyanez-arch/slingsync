@@ -138,11 +138,36 @@
 
   // ---- Test 5: is WebAssembly usable (would let us run FFmpeg's audio decoders in the panel)? ----
   btn("labWasm", async () => {
-    log("Loading a tiny WebAssembly module…");
+    log("Test 5 v2. Loading a tiny WebAssembly module…");
     await sleep(50);
     const bytes = new Uint8Array([0,0x61,0x73,0x6d,1,0,0,0, 1,7,1,0x60,2,0x7f,0x7f,1,0x7f, 3,2,1,0, 5,3,1,0,1,
       7,13,2,3,0x61,0x64,0x64,0,0, 3,0x6d,0x65,0x6d,2,0, 10,9,1,7,0,0x20,0,0x20,1,0x6a,0x0b]);
-    const { instance } = await WebAssembly.instantiate(bytes);
+    log("WebAssembly has: " + Object.getOwnPropertyNames(WebAssembly).join(", "));
+    let instance = null;
+    try {                                                    // way 1: synchronous
+      log("Way 1: new WebAssembly.Module…");
+      await sleep(50);
+      const m = new WebAssembly.Module(bytes);
+      log("  module OK, creating instance…");
+      await sleep(50);
+      instance = new WebAssembly.Instance(m, {});
+      log("  instance OK");
+    } catch (e) {
+      log("  way 1 failed: " + e);
+    }
+    if (!instance) {                                         // way 2: asynchronous, with a timeout
+      log("Way 2: WebAssembly.instantiate (10 s limit)…");
+      await sleep(50);
+      try {
+        const r = await Promise.race([WebAssembly.instantiate(bytes),
+                                      sleep(10000).then(() => { throw new Error("no answer after 10 s"); })]);
+        instance = r.instance;
+        log("  instance OK");
+      } catch (e) {
+        log("  way 2 failed: " + e);
+      }
+    }
+    if (!instance) { log("\nWebAssembly is NOT usable here ❌"); return; }
     const { add, mem } = instance.exports;
     log("Loaded. Calling it 10 million times…");
     await sleep(50);
