@@ -1,7 +1,7 @@
 // Feasibility tests run in Premiere 2027 on 2026-11-17/18 (results in docs/testing.md).
-// No longer loaded by the panel; kept for reference. To use again: add buttons with these ids
+// No longer loaded by the plug-in; kept for reference. To use again: add buttons with these ids
 // and a <pre id="labOut"> to index.html, and load this file after index.js.
-// Temporary feasibility tests for a panel-only (no app) SlingSync engine in JavaScript.
+// Temporary feasibility tests for a plug-in-only (no app) SlingSync engine in JavaScript.
 // Each test writes plain-text results into #labOut so they can be screenshotted.
 (function () {
   const ppro = require("premierepro");
@@ -145,7 +145,7 @@
     }
   });
 
-  // ---- Test 5: is WebAssembly usable (would let us run FFmpeg's audio decoders in the panel)? ----
+  // ---- Test 5: is WebAssembly usable (would let us run FFmpeg's audio decoders in the plug-in)? ----
   btn("labWasm", async () => {
     log("Test 5 v2. Loading a tiny WebAssembly module…");
     await sleep(50);
@@ -192,7 +192,7 @@
     log("\nWebAssembly works ✅");
   });
 
-  // ---- Test 6: the panel's own decoder (FFmpeg in WebAssembly) on any media file ----
+  // ---- Test 6: the plug-in's own decoder (FFmpeg in WebAssembly) on any media file ----
   btn("labDecoder", async () => {
     log("Test 6. Pick any video or audio file…");
     const f = await lfs.getFileForOpening();
@@ -253,7 +253,7 @@
   // ---- Test 3: JavaScript speed for the sync maths (FFT spectrogram) ----
   btn("labDsp", async () => {
     log("Test 3 started…");
-    await sleep(50);                                        // let the panel redraw
+    await sleep(50);                                        // let the plug-in redraw
     const SR = 8000, N = 512, HOP = 128, minutes = 1;
     const x = new Float32Array(SR * 60 * minutes);
     for (let i = 0; i < x.length; i++) x[i] = Math.random() - 0.5;

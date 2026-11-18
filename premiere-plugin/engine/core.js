@@ -1,4 +1,4 @@
-// SlingSync panel engine: the sync logic, ported from the desktop app's slingsync/engine.py.
+// SlingSync plug-in engine: the sync logic, ported from the desktop app's slingsync/engine.py.
 // Pure computation (no file access), so it runs the same in Premiere (UXP) and Node (tests).
 // Function names follow engine.py; keep the two in step when the sync logic changes.
 (function (root) {

@@ -1,14 +1,14 @@
 #!/bin/bash
-# Build the panel's audio decoder: FFmpeg 7.1.1 (same version as the app's PyAV), audio
+# Build the plug-in's audio decoder: FFmpeg 7.1.1 (same version as the app's PyAV), audio
 # only, compiled to WebAssembly with Emscripten (brew install emscripten).
-# Output: premiere-panel/wasm/ssdec.js + ssdec.wasm
+# Output: premiere-plugin/wasm/ssdec.js + ssdec.wasm
 #
 # FFmpeg is built with LGPL components only (no --enable-gpl), like PyAV's wheels.
 set -euo pipefail
 FFV=7.1.1
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 WORK="${SLINGSYNC_WASM_WORK:-$HOME/Library/Caches/slingsync-wasm}"
-OUT="$HERE/premiere-panel/wasm"
+OUT="$HERE/premiere-plugin/wasm"
 mkdir -p "$WORK"
 cd "$WORK"
 [ -f ffmpeg-$FFV.tar.xz ] || curl -sSLO "https://ffmpeg.org/releases/ffmpeg-$FFV.tar.xz"

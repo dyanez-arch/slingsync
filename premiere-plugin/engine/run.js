@@ -1,4 +1,4 @@
-// SlingSync panel engine: a whole sync, step by step (port of engine.run / engine.analyze /
+// SlingSync plug-in engine: a whole sync, step by step (port of engine.run / engine.analyze /
 // engine.scan_devices). All file access goes through `platform`, so the same code runs in
 // Premiere (UXP file system) and in Node (tests):
 //
@@ -33,7 +33,7 @@
     return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
   };
   const pyList = (a) => "[" + a.join(", ") + "]";
-  const tick = () => new Promise((r) => setTimeout(r, 0));   // let the panel redraw / see Cancel
+  const tick = () => new Promise((r) => setTimeout(r, 0));   // let the plug-in redraw / see Cancel
 
   // ---- scanning (engine._media_files, engine.scan_devices) ----
   async function mediaFiles(P, folder, recursive = true) {
@@ -378,7 +378,7 @@
   async function run(P, media, project, opts = {}) {
     const o = Object.assign({ refChannels: {}, fps: null, keepSilent: false, skipSilentClips: false,
       silenceDb: -60.0, flatDb: 3.0, minVotes: 12, output: null, name: null, cacheDir: null,
-      reportPath: null, compact: false, stems: false, stemsDir: null, stemsRate: null, version: "panel", progress: null, isCancelled: null, log: null }, opts);
+      reportPath: null, compact: false, stems: false, stemsDir: null, stemsRate: null, version: "plug-in", progress: null, isCancelled: null, log: null }, opts);
     const outer = o.progress || (() => {});
     const say = o.stems ? (f, m) => outer(0.85 * f, m) : outer;   // last part of the bar: audio files
     const log = o.log || (() => {});

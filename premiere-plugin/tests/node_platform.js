@@ -1,4 +1,4 @@
-// Node implementation of the panel engine's `platform` (file access), for tests.
+// Node implementation of the plug-in engine's `platform` (file access), for tests.
 const fs = require("fs");
 const path = require("path");
 

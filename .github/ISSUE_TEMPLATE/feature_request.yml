@@ -8,7 +8,7 @@ body:
       label: For which SlingSync?
       options:
         - Desktop app
-        - Premiere Pro panel
+        - Premiere Pro plug-in
         - Both
         - Command line
   - type: textarea

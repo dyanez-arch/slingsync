@@ -1,4 +1,4 @@
-// Node test helper: decode a file with the panel decoder and dump audio at 8 kHz.
+// Node test helper: decode a file with the plug-in decoder and dump audio at 8 kHz.
 // usage: node decode_dump.js <file> <seconds> <out.f32>   (prints probe info as JSON)
 const fs = require("fs");
 const path = require("path");

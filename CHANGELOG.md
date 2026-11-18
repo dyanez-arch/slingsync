@@ -1,58 +1,61 @@
 # Changelog
 
-Every build that reaches anyone gets its own version number and section here. Test builds are `1.2.0b1`, `1.2.0b2`… and the release is `1.2.0`. The Premiere panel has its own version (in `premiere-panel/manifest.json`), listed under each app version it ships with. See [versioning](docs/development.md#versioning). The app's **About** box and every report show the exact version and build.
+Every build that reaches anyone gets its own version number and section here. Test builds are `1.2.0b1`, `1.2.0b2`… and the release is `1.2.0`. The Premiere Pro plug-in has its own version (in `premiere-plugin/manifest.json`), listed under each app version it ships with. See [versioning](docs/development.md#versioning). The app's **About** box and every report show the exact version and build.
 
 What was tested with each build is in the [testing log](docs/testing.md).
 
 ## 1.2.1 (next)
 
-### Removed
-- The app's `slingsync://` link and `.slingsync_status.json` progress file: they let early panel versions ask the app to sync, and the panel has synced on its own since 0.6. (A leftover `.slingsync_status.json` in a shoot folder can be deleted.)
+### Changed
+- **"Panel" is now called the Premiere Pro plug-in** everywhere (docs, app About, the plug-in itself, GitHub): it's what editors call it. Repository folder `premiere-panel/` → `premiere-plugin/`, scripts `build_plugin_wasm.sh` and `package_plugin.sh`, package `SlingSync-PremierePro-plugin-<version>.ccx`, docs page [Desktop app and Premiere Pro plug-in](docs/desktop-app-and-premiere-plugin.md). The plug-in's internal id stays `io.github.slingsync.panel`, so an installed copy updates instead of appearing twice.
 
-### Premiere panel 0.11.0
-- The developer tests are out of the panel (kept in `premiere-panel/tests/lab_feasibility.js`). About shows only what users need.
+### Removed
+- The app's `slingsync://` link and `.slingsync_status.json` progress file: they let early plug-in versions ask the app to sync, and the plug-in has synced on its own since 0.6. (A leftover `.slingsync_status.json` in a shoot folder can be deleted.)
+
+### Premiere Pro plug-in 0.11.0
+- The developer tests are out of the plug-in (kept in `premiere-plugin/tests/lab_feasibility.js`). About shows only what users need.
 
 ### Repository
 - Issue templates: *Report a problem* asks for the tool, version, Mac, the shoot, `SlingSync_report.txt` and the details log; *Suggest a feature*; links to the guides and Ko-fi.
 
 ## 1.2.0 (2026-11-18)
 
-Everything in the 1.2.0b1 and 1.2.0b2 test builds below, plus the **Premiere Pro 2027 panel** as a `.ccx` next to the DMG. Built by GitHub Actions run [44359091126](https://github.com/dyanez-arch/slingsync/actions/runs/44359091126) from tag `v1.2.0`; [release page](https://github.com/dyanez-arch/slingsync/releases/tag/v1.2.0) with `SlingSync-1.2.0-macOS-AppleSilicon.dmg` and `SlingSync-panel-0.10.3.ccx`.
+Everything in the 1.2.0b1 and 1.2.0b2 test builds below, plus the **Premiere Pro 2027 plug-in** as a `.ccx` next to the DMG. Built by GitHub Actions run [44359091126](https://github.com/dyanez-arch/slingsync/actions/runs/44359091126) from tag `v1.2.0`; [release page](https://github.com/dyanez-arch/slingsync/releases/tag/v1.2.0) with `SlingSync-1.2.0-macOS-AppleSilicon.dmg` and `SlingSync-panel-0.10.3.ccx`.
 
 **Highlights**
-- **Premiere Pro panel (Premiere 2027+):** syncs a shoot inside Premiere with no other app, using a JavaScript copy of the engine whose results are byte-identical to the app's, and adds the sequence to your project. Also **Compact Timeline** on any open sequence, audio-file export and import of a synced folder. Installs by double-clicking `SlingSync-panel-0.10.3.ccx`. Working prototype: tested on three shoots in Premiere 2027.
-- **Compact timeline:** a second sequence with every stretch where nothing was recording cut out, so the day plays as one block for review or a transcript (app checkbox, `--compact`, panel button).
+- **Premiere Pro plug-in (Premiere 2027+):** syncs a shoot inside Premiere with no other app, using a JavaScript copy of the engine whose results are byte-identical to the app's, and adds the sequence to your project. Also **Compact Timeline** on any open sequence, audio-file export and import of a synced folder. Installs by double-clicking `SlingSync-panel-0.10.3.ccx`. Working prototype: tested on three shoots in Premiere 2027.
+- **Compact timeline:** a second sequence with every stretch where nothing was recording cut out, so the day plays as one block for review or a transcript (app checkbox, `--compact`, plug-in button).
 - **Audio only:** one aligned WAV per microphone for any audio editor, no Premiere or video needed.
 - **Fixed:** a loose-files shoot synced again after an audio export lost its video.
-- About credits the creator and links to GitHub issues and Ko-fi; docs explain the desktop app and the panel side by side.
+- About credits the creator and links to GitHub issues and Ko-fi; docs explain the desktop app and the plug-in side by side.
 
-Tested on 1.2.0b2 (same code apart from the version number): installs and shows its version, Borthwick fix, compact timeline, panel `.ccx` install. See the [testing log](docs/testing.md).
+Tested on 1.2.0b2 (same code apart from the version number): installs and shows its version, Borthwick fix, compact timeline, plug-in `.ccx` install. See the [testing log](docs/testing.md).
 
 ## 1.2.0b2 (test build)
 
-Built by GitHub Actions run [44355109228](https://github.com/dyanez-arch/slingsync/actions/runs/44355109228) from commit `df9fe7f`: `SlingSync-1.2.0b2-macOS-AppleSilicon.dmg` plus the **Premiere panel package** `SlingSync-panel-0.10.3.ccx`, in one download (*SlingSync-macos-15*). (The first attempt, run 44354634877, failed making the DMG: hdiutil "Resource busy"; the build now retries that step.)
+Built by GitHub Actions run [44355109228](https://github.com/dyanez-arch/slingsync/actions/runs/44355109228) from commit `df9fe7f`: `SlingSync-1.2.0b2-macOS-AppleSilicon.dmg` plus the **Premiere Pro plug-in package** `SlingSync-panel-0.10.3.ccx`, in one download (*SlingSync-macos-15*). (The first attempt, run 44354634877, failed making the DMG: hdiutil "Resource busy"; the build now retries that step.)
 
 ### Fixed
-- **Loose-files shoots synced again after an audio export lost their video** (found on Mark Borthwick, 2026-11-18): the `<name>_audio` folder that *Also export audio files* creates was taken for a device subfolder, so only the exported WAVs were synced and the cameras and recorder were ignored (0 video tracks). SlingSync's own audio-export folders are now never treated as devices (app and panel). Borthwick now: 3 of 3 clips synced, 2 video + 9 audio tracks, identical in both engines.
+- **Loose-files shoots synced again after an audio export lost their video** (found on Mark Borthwick, 2026-11-18): the `<name>_audio` folder that *Also export audio files* creates was taken for a device subfolder, so only the exported WAVs were synced and the cameras and recorder were ignored (0 video tracks). SlingSync's own audio-export folders are now never treated as devices (app and plug-in). Borthwick now: 3 of 3 clips synced, 2 video + 9 audio tracks, identical in both engines.
 
 ### Added
-- **Compact timeline** (app checkbox, `--compact`, panel button **Compact Timeline…**): a second XML, `…_compact.xml`, with every stretch where nothing was recording cut out, so the day plays as one block for review or a transcript. Overlapping clips move together; blocks are joined frame-exactly (no black frames). Kishorn: 5 h 03 min → 1 h 27 min, 52 recording blocks, sync kept in every block, 0-frame gaps; app and panel engines write byte-identical files. Checked in Premiere on 1.2.0b2.
-- **Premiere panel step 2 (panel 0.2):** **Sync Shoot Folder…** in the panel opens the SlingSync app with that folder (via a `slingsync://` link that the app now registers). The app syncs it, reports progress to the panel through a small `.slingsync_status.json` file in the folder, and the panel imports the synced sequence. Option to also export audio files. Tested with the app driven offscreen, including a folder name with a space and an accent; not yet tested in Premiere.
-- App **About** now credits the creator (link to GitHub profile) and links to Issues. Plus a link to support development on [Ko-fi](https://ko-fi.com/pisdronio) (app, panel, README, and GitHub's **Sponsor** button via `.github/FUNDING.yml`). Tested offscreen.
-- **Docs:** new [Desktop app and Premiere panel](docs/desktop-app-and-premiere-panel.md) page explaining the two tools, why they're built differently and how they relate; README, docs index, code layout and panel README reorganised around it.
+- **Compact timeline** (app checkbox, `--compact`, plug-in button **Compact Timeline…**): a second XML, `…_compact.xml`, with every stretch where nothing was recording cut out, so the day plays as one block for review or a transcript. Overlapping clips move together; blocks are joined frame-exactly (no black frames). Kishorn: 5 h 03 min → 1 h 27 min, 52 recording blocks, sync kept in every block, 0-frame gaps; app and plug-in engines write byte-identical files. Checked in Premiere on 1.2.0b2.
+- **Premiere Pro plug-in step 2 (plug-in 0.2):** **Sync Shoot Folder…** in the plug-in opens the SlingSync app with that folder (via a `slingsync://` link that the app now registers). The app syncs it, reports progress to the plug-in through a small `.slingsync_status.json` file in the folder, and the plug-in imports the synced sequence. Option to also export audio files. Tested with the app driven offscreen, including a folder name with a space and an accent; not yet tested in Premiere.
+- App **About** now credits the creator (link to GitHub profile) and links to Issues. Plus a link to support development on [Ko-fi](https://ko-fi.com/pisdronio) (app, plug-in, README, and GitHub's **Sponsor** button via `.github/FUNDING.yml`). Tested offscreen.
+- **Docs:** new [Desktop app and Premiere Pro plug-in](docs/desktop-app-and-premiere-plugin.md) page explaining the two tools, why they're built differently and how they relate; README, docs index, code layout and plug-in README reorganised around it.
 
-### Premiere panel 0.5 – 0.8 (development, not packaged)
+### Premiere Pro plug-in 0.5 – 0.8 (development, not packaged)
 - 0.5: FFmpeg WebAssembly decoder runs inside Premiere (Test 6): a 4K Canon MXF's 8 audio tracks and timecode read correctly, same speed as the app on the same USB drive.
-- 0.6: **the panel's own engine**: **Sync Shoot Folder…** runs a JavaScript port of the sync engine inside Premiere, no app needed (the `slingsync://` bridge to the app is no longer used). Checked against the app: Kishorn (111 clips) and the synthetic project give byte-identical XML and identical reports. Synced Kishorn inside Premiere 2027 successfully (2026-11-18). 0.6.1: clipboard copy via UXP `setContent`, Copy details.
+- 0.6: **the plug-in's own engine**: **Sync Shoot Folder…** runs a JavaScript port of the sync engine inside Premiere, no app needed (the `slingsync://` bridge to the app is no longer used). Checked against the app: Kishorn (111 clips) and the synthetic project give byte-identical XML and identical reports. Synced Kishorn inside Premiere 2027 successfully (2026-11-18). 0.6.1: clipboard copy via UXP `setContent`, Copy details.
 - 0.7: simpler layout: one main button; progress, result and details only when needed; import and About as small links; developer tests moved into About.
 - 0.8: **Compact Timeline…** button.
-- 0.10.3: **packaged as `.ccx`** (`scripts/package_panel.sh`, about 1 MB: panel, engine, decoder, MIT license and FFmpeg LGPL notice; tests and C source left out). GitHub builds now package it and attach it to releases.
-- 0.9 – 0.10.2: **Compact Timeline** works on the open sequence: Premiere copies it ("… (compact)"), the panel closes every gap where no track has a clip, checks every clip landed where planned, and opens the copy; the original is unchanged. Premiere 2027 needs actions created inside `lockedAccess` + `executeTransaction` and fresh objects after each edit (otherwise "The script object is no longer valid"). Tested in Premiere 2027 on Devon Night 2 (2026-11-18): 181 clips, 47 blocks, 135.1 → 59.6 min, all clips where planned; clips move individually (linked clips don't follow). 0.10 also adds the audio-file export to the panel (WAVs match the app's to within 1 least-significant bit).
+- 0.10.3: **packaged as `.ccx`** (`scripts/package_plugin.sh`, about 1 MB: plug-in, engine, decoder, MIT license and FFmpeg LGPL notice; tests and C source left out). GitHub builds now package it and attach it to releases.
+- 0.9 – 0.10.2: **Compact Timeline** works on the open sequence: Premiere copies it ("… (compact)"), the plug-in closes every gap where no track has a clip, checks every clip landed where planned, and opens the copy; the original is unchanged. Premiere 2027 needs actions created inside `lockedAccess` + `executeTransaction` and fresh objects after each edit (otherwise "The script object is no longer valid"). Tested in Premiere 2027 on Devon Night 2 (2026-11-18): 181 clips, 47 blocks, 135.1 → 59.6 min, all clips where planned; clips move individually (linked clips don't follow). 0.10 also adds the audio-file export to the plug-in (WAVs match the app's to within 1 least-significant bit).
 
-### Premiere panel 0.3 – 0.4 (development, not packaged)
-- 0.3: temporary **Developer tests** to check a panel-only engine is feasible. Run in Premiere Pro 2027 on 2026-11-18: direct WAV reading ✅ fast, Media Encoder ✅ slow (fallback only), JavaScript speed ✅, built-in audio decoder ❌ none, WebAssembly ✅.
+### Premiere Pro plug-in 0.3 – 0.4 (development, not packaged)
+- 0.3: temporary **Developer tests** to check a plug-in-only engine is feasible. Run in Premiere Pro 2027 on 2026-11-18: direct WAV reading ✅ fast, Media Encoder ✅ slow (fallback only), JavaScript speed ✅, built-in audio decoder ❌ none, WebAssembly ✅.
 - 0.4: **About** section (version, creator, GitHub, report a problem, Ko-fi). Opening web links needs the `https` scheme in the manifest. Not yet tested in Premiere.
-- **Panel decoder:** FFmpeg 7.1.1 (same as the app), audio only, built to WebAssembly (`premiere-panel/wasm/`, `scripts/build_panel_wasm.sh`). Builds; not yet wired in or tested.
+- **Plug-in decoder:** FFmpeg 7.1.1 (same as the app), audio only, built to WebAssembly (`premiere-plugin/wasm/`, `scripts/build_plugin_wasm.sh`). Builds; not yet wired in or tested.
 
 ## 1.2.0b1 (test build, 2026-11-17)
 
@@ -60,7 +63,7 @@ Built by GitHub Actions run [44219903752](https://github.com/dyanez-arch/slingsy
 
 ### Added
 - **Audio only / podcasts:** *Also export audio files* (app) or `--audio` (command line) writes one aligned 24-bit WAV per device channel to `<project>_audio`. Drop them all at 0:00 in any audio editor and they're in sync to the sample. No Premiere or video needed. Tested on a 5-hour, 111-clip shoot: 7 files, about 3 minutes, under 1 GB of memory. Placement is identical to the XML but not rounded to frames.
-- **Premiere Pro 2027 panel, prototype step 1** (`premiere-panel/`): imports a SlingSync XML into the open project from a shoot folder or file, and checks that the sequence appeared. Not yet tested in Premiere.
+- **Premiere Pro 2027 plug-in, prototype step 1** (`premiere-plugin/`): imports a SlingSync XML into the open project from a shoot folder or file, and checks that the sequence appeared. Not yet tested in Premiere.
 - App: **Show Audio Files** button in the results; the quick guide explains audio-only use.
 
 ## 1.1.0 (2026-11-17)

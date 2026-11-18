@@ -1,8 +1,8 @@
-"""Sync one shoot with the desktop app's engine (Python) and the panel engine (JavaScript,
+"""Sync one shoot with the desktop app's engine (Python) and the plug-in engine (JavaScript,
 in Node) and compare the results clip by clip. Nothing is written to the shoot folder:
 XML, reports and analysis caches go to OUTDIR.
 
-usage: .venv/bin/python premiere-panel/tests/compare_sync.py PROJECT OUTDIR
+usage: .venv/bin/python premiere-plugin/tests/compare_sync.py PROJECT OUTDIR
 """
 import json, os, re, subprocess, sys, time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -25,12 +25,12 @@ if not os.path.exists(os.path.join(outdir, "py_compact.xml")) or "--rerun-py" in
     os.replace(os.path.join(outdir, os.path.basename(project) + "_compact.xml"), os.path.join(outdir, "py_compact.xml"))
     print(f"app engine: {time.time() - t:.0f} s")
 
-# --- panel engine ---
+# --- plug-in engine ---
 t = time.time()
 r = subprocess.run(["node", os.path.join(HERE, "run_sync.js"), project, outdir])
 if r.returncode:
-    sys.exit("panel engine failed")
-print(f"panel engine: {time.time() - t:.0f} s")
+    sys.exit("plug-in engine failed")
+print(f"plug-in engine: {time.time() - t:.0f} s")
 os.replace(os.path.join(outdir, os.path.basename(project) + "_compact.xml"), os.path.join(outdir, "js_compact.xml"))
 for kind in ("", "_compact"):
     same = open(os.path.join(outdir, f"py{kind or ''}.xml" if kind else os.path.join(outdir, "py.xml")), "rb").read() == \
@@ -51,7 +51,7 @@ def clips(rep):
 a, b = clips(py_rep), clips(os.path.join(outdir, "js_report.txt"))
 same_status = sum(1 for k in a if k in b and a[k][1] == b[k][1])
 diffs = sorted(((abs(a[k][0] - b[k][0]), k) for k in a if k in b), reverse=True)
-print(f"\nclips: app {len(a)}, panel {len(b)}, same status {same_status}/{len(a)}")
+print(f"\nclips: app {len(a)}, plug-in {len(b)}, same status {same_status}/{len(a)}")
 for lim in (0.001, 0.0205, 0.5):
     print(f"  start within {lim * 1000:g} ms: {sum(1 for d, _ in diffs if d <= lim)}/{len(diffs)}")
 print("largest differences:")
@@ -59,4 +59,4 @@ for d, k in diffs[:8]:
     print(f"  {d * 1000:9.1f} ms  {a[k][1]:<16} {b[k][1]:<16} {k}")
 for k in a:
     if k in b and a[k][1] != b[k][1]:
-        print(f"  status differs: {k}: app {a[k][1]}, panel {b[k][1]}")
+        print(f"  status differs: {k}: app {a[k][1]}, plug-in {b[k][1]}")

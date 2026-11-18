@@ -25,7 +25,7 @@ DOCS = REPO + "/blob/main/docs/"
 COPYRIGHT = "© 2026 Daniel Juan Yanez Villagomez"
 CREATOR_URL = "https://github.com/dyanez-arch"
 # Donation page (e.g. "https://ko-fi.com/<name>"); the About line is hidden while empty.
-# Keep in sync with SUPPORT_URL in premiere-panel/index.js.
+# Keep in sync with SUPPORT_URL in premiere-plugin/index.js.
 SUPPORT_URL = "https://ko-fi.com/pisdronio"
 
 
@@ -446,7 +446,7 @@ class MainWindow(QMainWindow):
         name.setAlignment(Qt.AlignCenter)
         body = QLabel(
             "Free multicam sync for Premiere Pro, by sound.<br>"
-            "Also as a panel inside Premiere Pro 2027 (in development).<br><br>"
+            "Also as a plug-in for Adobe Premiere Pro 2027.<br><br>"
             f'Made by <a href="{CREATOR_URL}">Daniel Yanez</a>, documentary editor.<br>'
             "Free and open source under the MIT License.<br>"
             f"{COPYRIGHT}<br><br>"

@@ -7,9 +7,9 @@ SlingSync comes in two forms:
 | | |
 |---|---|
 | **Desktop app** (Mac) | Released. Works with any editor that imports FCP7 XML, or with no video at all (audio-only export). [Download](../../releases) |
-| **Premiere Pro panel** (Premiere 2027+) | Working prototype, installs from a `.ccx` file. Syncs inside Premiere on its own and puts the sequence straight into your project; also compacts any open sequence. [About the panel](premiere-panel/README.md) |
+| **Premiere Pro plug-in** (Premiere 2027+) | Working prototype, installs from a `.ccx` file. Syncs inside Premiere on its own and puts the sequence straight into your project; also compacts any open sequence. [About the plug-in](premiere-plugin/README.md) |
 
-They do the same job and aim for identical results, but are built differently: Premiere plugins can only run JavaScript, so the panel carries its own JavaScript version of the engine. See [Desktop app and Premiere panel](docs/desktop-app-and-premiere-panel.md) for how they relate and which to use. The rest of this page is about the **desktop app**.
+They do the same job and aim for identical results, but are built differently: Premiere plugins can only run JavaScript, so the plug-in carries its own JavaScript version of the engine. See [Desktop app and Premiere Pro plug-in](docs/desktop-app-and-premiere-plugin.md) for how they relate and which to use. The rest of this page is about the **desktop app**.
 
 Drop in a folder of clips from any number of cameras and audio recorders, and SlingSync lines them all up by matching their audio, then hands you an XML that opens in Premiere as a ready-synced sequence. It's built for real documentary shoots: hundreds of clips, recorders stopping and starting, cameras rolling in bursts, multichannel WAVs with dead channels.
 
@@ -21,10 +21,10 @@ Tested on real documentary footage and checked in Premiere Pro. See the [testing
 
 - ✅ A 79-minute interview: 2 cameras plus a 5-channel recorder, loose files, proxies.
 - ✅ A full-day site visit: 131 clips from 5 devices (2 cameras, recorder, GoPro, drone). The camera timecode was changed mid-day.
-- ✅ Premiere panel: synced shoots inside Premiere Pro 2027 with no app, results identical to the app; Compact Timeline on a 181-clip day.
+- ✅ Premiere Pro plug-in: synced shoots inside Premiere Pro 2027 with no app, results identical to the app; Compact Timeline on a 181-clip day.
 - ⏳ Not yet tested: the packaged app on other Macs, mixed frame rates, NAS drives, Intel Macs.
 
-The current release is **v1.2.0**: desktop app plus the Premiere Pro 2027 panel. What's new is in the [changelog](CHANGELOG.md).
+The current release is **v1.2.0**: desktop app plus the Premiere Pro 2027 plug-in. What's new is in the [changelog](CHANGELOG.md).
 
 ## Documentation
 
@@ -34,7 +34,7 @@ Full guides are in [`docs/`](docs/README.md): [user guide](docs/user-guide.md), 
 
 Get the latest `.dmg` from the [Releases](../../releases) page, open it, and drag **SlingSync** into Applications.
 
-**Premiere Pro 2027 panel:** from the same release, download `SlingSync-panel-….ccx` and double-click it; Creative Cloud installs it. Then restart Premiere and open **Window → UXP Plugins → SlingSync**.
+**Premiere Pro 2027 plug-in:** from the same release, download `SlingSync-PremierePro-plugin-….ccx` and double-click it; Creative Cloud installs it. Then restart Premiere and open **Window → UXP Plugins → SlingSync**.
 
 **First launch:** SlingSync is free and isn't signed with a paid Apple developer account, so macOS blocks it the first time. This is expected, and you only do it once:
 
@@ -78,9 +78,9 @@ Anything that couldn't be synced by sound is marked orange (placed by its device
 
 **Sync using** (per device) lets you force syncing to a single channel, such as the ambient mic. The default, which mixes all live channels, is usually the most reliable.
 
-## Premiere Pro panel (working prototype)
+## Premiere Pro plug-in (working prototype)
 
-A SlingSync panel for **Premiere Pro 2027** lives in [`premiere-panel/`](premiere-panel/README.md). It syncs a shoot folder **inside Premiere, without the desktop app**, using a JavaScript copy of the same engine (results are byte-identical to the app's), and adds the synced sequence to your project. It can also export the aligned audio files and **compact any open sequence**. Install it by double-clicking the `SlingSync-panel-….ccx` file that comes with each build. Read [Desktop app and Premiere panel](docs/desktop-app-and-premiere-panel.md) for the differences.
+A SlingSync plug-in for **Premiere Pro 2027** lives in [`premiere-plugin/`](premiere-plugin/README.md). It syncs a shoot folder **inside Premiere, without the desktop app**, using a JavaScript copy of the same engine (results are byte-identical to the app's), and adds the synced sequence to your project. It can also export the aligned audio files and **compact any open sequence**. Install it by double-clicking the `SlingSync-PremierePro-plugin-….ccx` file that comes with each build. Read [Desktop app and Premiere Pro plug-in](docs/desktop-app-and-premiere-plugin.md) for the differences.
 
 ## Command line
 
@@ -126,9 +126,9 @@ This produces `dist/SlingSync.app` and a `.dmg`. Pushing a tag such as `v1.1.0` 
 | Folder | |
 |---|---|
 | [`slingsync/`](slingsync) | Desktop app and command line (Python): engine, GUI, CLI |
-| [`premiere-panel/`](premiere-panel/README.md) | Premiere Pro panel (JavaScript + WebAssembly) |
+| [`premiere-plugin/`](premiere-plugin/README.md) | Premiere Pro plug-in (JavaScript + WebAssembly) |
 | [`docs/`](docs/README.md) | Guides for both |
-| [`scripts/`](scripts) | Build scripts (Mac app, panel decoder) and the synthetic test project |
+| [`scripts/`](scripts) | Build scripts (Mac app, plug-in decoder) and the synthetic test project |
 
 ## Credits and support
 
@@ -138,4 +138,4 @@ If it saves you time, you can support its development on **[Ko-fi](https://ko-fi
 
 ## License
 
-MIT for SlingSync's own code. The desktop app bundles FFmpeg through PyAV, and the panel includes FFmpeg compiled to WebAssembly; FFmpeg is LGPL 2.1+ (see [`premiere-panel/wasm/`](premiere-panel/wasm/README.md)).
+MIT for SlingSync's own code. The desktop app bundles FFmpeg through PyAV, and the plug-in includes FFmpeg compiled to WebAssembly; FFmpeg is LGPL 2.1+ (see [`premiere-plugin/wasm/`](premiere-plugin/wasm/README.md)).

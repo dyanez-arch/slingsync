@@ -1,15 +1,15 @@
-// SlingSync panel decoder: FFmpeg (audio-only build) compiled to WebAssembly.
+// SlingSync plug-in decoder: FFmpeg (audio-only build) compiled to WebAssembly.
 //
 // Mirrors what the Python engine gets from PyAV:
 //   ss_open(handle, size)      open a file; bytes come from JavaScript (js_read), so the
-//                              panel's own file access is used and only needed parts are read
+//                              plug-in's own file access is used and only needed parts are read
 //   ss_info()                  JSON: duration, audio streams/channels, rate, fps, size, tags
 //   ss_start(rate)             start decoding every audio stream, resampled to `rate` Hz
 //   ss_read(max_frames)        decode up to max_frames frames; returns frames written to
 //                              ss_buf() as interleaved float32, all streams' channels side by
 //                              side (like engine._blocks). 0 = end of file.
 //   ss_close()
-// One file at a time (the panel analyses files one after another).
+// One file at a time (the plug-in analyses files one after another).
 #include <emscripten.h>
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>

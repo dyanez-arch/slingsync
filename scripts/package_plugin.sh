@@ -1,12 +1,12 @@
 #!/bin/bash
-# Package the Premiere panel as a .ccx (a zip of the plugin, manifest.json at its root),
-# which Creative Cloud installs with a double-click. Output: dist/SlingSync-panel-<version>.ccx
+# Package the Premiere Pro plug-in as a .ccx (a zip of the plugin, manifest.json at its root),
+# which Creative Cloud installs with a double-click. Output: dist/SlingSync-PremierePro-plugin-<version>.ccx
 # Left out: tests, the decoder's C source, notes. Kept: everything index.html loads.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
-SRC="$HERE/premiere-panel"
+SRC="$HERE/premiere-plugin"
 VER=$(/usr/bin/python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['version'])" "$SRC/manifest.json")
-OUT="$HERE/dist/SlingSync-panel-$VER.ccx"
+OUT="$HERE/dist/SlingSync-PremierePro-plugin-$VER.ccx"
 mkdir -p "$HERE/dist"
 rm -f "$OUT"
 cd "$SRC"

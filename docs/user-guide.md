@@ -123,7 +123,7 @@ Drop **all of them at the very start (0:00) of the timeline** in any audio edito
 
 ## 4c. Compact timeline: the whole day as one block (review, transcripts)
 
-Tick **Also make a compact timeline** (desktop app), use **Compact Timeline…** (Premiere panel) or `--compact` (command line). SlingSync writes a second XML, `<project>_compact.xml`, next to the normal one: the same sync, but every stretch where **nothing** was recording (no camera, no recorder) is cut out, so the day plays as one continuous block with no black gaps.
+Tick **Also make a compact timeline** (desktop app), use **Compact Timeline…** (Premiere Pro plug-in) or `--compact` (command line). SlingSync writes a second XML, `<project>_compact.xml`, next to the normal one: the same sync, but every stretch where **nothing** was recording (no camera, no recorder) is cut out, so the day plays as one continuous block with no black gaps.
 
 - Clips that overlap stay in sync with each other: each block of overlapping recordings moves as one piece, by whole frames.
 - Your normal synced sequence is unchanged; the compact one is separate.

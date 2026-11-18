@@ -1,4 +1,4 @@
-// Run the panel engine on a shoot folder in Node.
+// Run the plug-in engine on a shoot folder in Node.
 // usage: node run_sync.js <project> <outdir>   -> <outdir>/js.xml, js_report.txt, js_log.txt, js_cache/
 const fs = require("fs");
 const path = require("path");
@@ -17,7 +17,7 @@ const P = require("./node_platform.js");
   let lastMsg = "";
   const res = await SlingRun.run(P, media, path.resolve(project), {
     output: path.join(outdir, "js.xml"), reportPath: path.join(outdir, "js_report.txt"),
-    cacheDir: path.join(outdir, "js_cache"), version: "panel-test", compact: true,
+    cacheDir: path.join(outdir, "js_cache"), version: "plugin-test", compact: true,
     stems: !!process.env.STEMS, stemsDir: path.join(outdir, "js_audio"), stemsRate: process.env.STEMS_RATE ? Number(process.env.STEMS_RATE) : null,
     log: (s) => logLines.push(s),
     progress: (f, m) => { const msg = m.replace(/\(\d+\/\d+\)/, ""); if (msg !== lastMsg) { lastMsg = msg; process.stderr.write(`[${((Date.now() - t0) / 1000).toFixed(0)}s] ${m}\n`); } },

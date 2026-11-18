@@ -2,7 +2,7 @@
 
 ## Code layout
 
-The repository holds two tools that share one engine design (see [Desktop app and Premiere panel](desktop-app-and-premiere-panel.md)):
+The repository holds two tools that share one engine design (see [Desktop app and Premiere Pro plug-in](desktop-app-and-premiere-plugin.md)):
 
 ```
 ── Desktop app + command line (Python) ──
@@ -19,20 +19,20 @@ scripts/make_test_project.py   synthetic project with known answers (regression 
 SlingSync.spec             PyInstaller spec
 .github/workflows/build-mac.yml   CI build and release (desktop app)
 
-── Premiere Pro panel (JavaScript + WebAssembly, UXP) ──
-premiere-panel/
+── Premiere Pro plug-in (JavaScript + WebAssembly, UXP) ──
+premiere-plugin/
     manifest.json          plugin id, version, Premiere 27.0+, permissions
-    index.html, index.js   the panel (sync, Compact Timeline, import, About)
+    index.html, index.js   the plug-in (sync, Compact Timeline, import, About)
     engine/                JavaScript port of the engine (core.js, run.js) + file access + decoder bridge
-    tests/                 panel engine vs desktop app (Node), feasibility tests
+    tests/                 plug-in engine vs desktop app (Node), feasibility tests
     wasm/ssdec.c           FFmpeg glue: open a file, list streams/tags, decode audio at any rate
-    wasm/ssdec.js, .wasm   built decoder (scripts/build_panel_wasm.sh)
-scripts/build_panel_wasm.sh    builds FFmpeg 7.1.1 (audio only) + ssdec.c with Emscripten
-scripts/package_panel.sh       packages the panel as dist/SlingSync-panel-<version>.ccx (also done by CI)
+    wasm/ssdec.js, .wasm   built decoder (scripts/build_plugin_wasm.sh)
+scripts/build_plugin_wasm.sh    builds FFmpeg 7.1.1 (audio only) + ssdec.c with Emscripten
+scripts/package_plugin.sh       packages the plug-in as dist/SlingSync-PremierePro-plugin-<version>.ccx (also done by CI)
 
 ── Shared ──
 docs/                      guides for both tools
-CHANGELOG.md               app versions and panel versions
+CHANGELOG.md               app versions and plug-in versions
 ```
 
 The GUI and CLI are thin. Everything else is in `engine.py`, documented in [How it works](how-it-works.md). Main entry points, in pipeline order:

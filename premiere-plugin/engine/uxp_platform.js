@@ -1,4 +1,4 @@
-// The panel engine's `platform` (file access) inside Premiere, using UXP's Node-style "fs"
+// The plug-in engine's `platform` (file access) inside Premiere, using UXP's Node-style "fs"
 // (needs "localFileSystem": "fullAccess" in manifest.json). See run.js for the interface.
 (function (root) {
   "use strict";

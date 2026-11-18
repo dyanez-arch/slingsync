@@ -1,5 +1,5 @@
-// SlingSync panel for Premiere Pro 2027 (UXP).
-// Sync a Shoot…: the panel's own engine (engine/*.js + wasm/ssdec, a JavaScript port of
+// SlingSync plug-in for Premiere Pro 2027 (UXP).
+// Sync a Shoot…: the plug-in's own engine (engine/*.js + wasm/ssdec, a JavaScript port of
 // the desktop app's engine) syncs the folder inside Premiere, then imports the sequence.
 // Import from Shoot Folder… / Import XML File…: import an existing SlingSync XML.
 const ppro = require("premierepro");
@@ -101,7 +101,7 @@ async function copyText(text) {
   return err;
 }
 
-// ---- the panel engine ----
+// ---- the plug-in engine ----
 let engine = null;
 let cancelRequested = false;
 const detailBox = document.getElementById("detailLog");
@@ -117,7 +117,7 @@ async function getEngine() {
 }
 
 function panelVersion() {
-  try { return "panel " + require("uxp").versions.plugin; } catch (e) { return "panel"; }
+  try { return "plug-in " + require("uxp").versions.plugin; } catch (e) { return "plug-in"; }
 }
 
 async function syncFolder(folderPath, folderName) {
@@ -378,7 +378,7 @@ if (SUPPORT_URL) {
   document.getElementById("supportLink").setAttribute("href", SUPPORT_URL);
   document.getElementById("supportLine").hidden = false;
 }
-// Links open in the user's web browser (panels have no browser of their own).
+// Links open in the user's web browser (plug-ins have no browser of their own).
 for (const a of document.querySelectorAll("a.ext")) {
   a.addEventListener("click", (ev) => {
     ev.preventDefault();

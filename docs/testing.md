@@ -74,7 +74,7 @@ What has actually been run, on what, and what hasn't been tested yet. Newest fir
 - **About** shows the real version and build stamp, the first build to do so.
 - **Audio export** from the app (checkbox, then **Show Audio Files**): the WAVs lined up in an audio editor.
 - **Cancel** stopped promptly on a folder that hadn't been synced before.
-- Not yet tested: the Premiere panel.
+- Not yet tested: the Premiere Pro plug-in.
 
 ## 2026-11-17 (evening): Night shoot, re-run from the installed app: ✅ worked (Dani)
 
@@ -103,27 +103,27 @@ What has actually been run, on what, and what hasn't been tested yet. Newest fir
 
 **Not yet verified:** the sync result for this shoot. It needs a rerun on stable storage.
 
-## Premiere panel (2026-11-17 / 18, Premiere Pro 2027)
+## Premiere Pro plug-in (2026-11-17 / 18, Premiere Pro 2027)
 
-The panel's JavaScript engine is checked against the desktop app's engine with `premiere-panel/tests/compare_sync.py` (both engines on the same shoot, output to a temporary folder, nothing written to the shoot) and `compare_decode.py` (decoding, sample by sample).
+The plug-in's JavaScript engine is checked against the desktop app's engine with `premiere-plugin/tests/compare_sync.py` (both engines on the same shoot, output to a temporary folder, nothing written to the shoot) and `compare_decode.py` (decoding, sample by sample).
 
 | Test | Result |
 |---|---|
-| Feasibility in Premiere (panel 0.3): read a 2 GB recorder WAV directly | ✅ 3.8 h of audio in 17.5 s |
+| Feasibility in Premiere (plug-in 0.3): read a 2 GB recorder WAV directly | ✅ 3.8 h of audio in 17.5 s |
 | Media Encoder as decoder | ✅ works, slow (3 min clip in 79 s): last resort only |
 | JavaScript speed (spectrogram) | ✅ ~5 s per hour of audio |
 | Built-in audio decoder (Web Audio) | ❌ not in UXP |
 | WebAssembly | ✅ (synchronous loading; asynchronous loading hangs) |
 | FFmpeg 7.1.1 WebAssembly decoder vs app, 21 files (MXF, MP4/MOV, WAV, AIFF, MP3, AAC, FLAC, Opus, AC-3, no-audio files) | ✅ identical channels, length and timing; samples within 0.000001 |
 | Decoder inside Premiere (Test 6): 4K Canon MXF, 8 tracks + timecode | ✅ same speed as the app on the same USB drive (both ~14 s per 48 s of 4K footage: the drive is the limit) |
-| Kishorn (111 clips, 5 devices, proxies): panel engine vs app | ✅ XML and compact XML byte-identical, report identical apart from the version line |
+| Kishorn (111 clips, 5 devices, proxies): plug-in engine vs app | ✅ XML and compact XML byte-identical, report identical apart from the version line |
 | Synthetic project | ✅ identical, every clip at its known position |
-| Kishorn synced **inside Premiere** by the panel (0.6), no app | ✅ |
+| Kishorn synced **inside Premiere** by the plug-in (0.6), no app | ✅ |
 | Mark Borthwick (loose files) | Found a bug (also in the app): the earlier audio export's `_audio` folder was taken for a device, so the cameras were dropped (no video). Fixed; now 3/3 synced, 2 video + 9 audio tracks, identical in both engines |
 | Compact timeline engine (Kishorn) | ✅ 5 h 03 → 1 h 27, 52 blocks, sync kept in every block, 0-frame gaps, identical in both engines |
-| **Compact Timeline in Premiere** (panel 0.10.2) on Devon Night 2 | ✅ 181 clips, 47 blocks, 135.1 → 59.6 min, every clip where planned, original unchanged. Needed: actions created inside `lockedAccess` + `executeTransaction`, fresh objects after every edit |
-| Panel audio-file export vs app (synthetic) | ✅ same length and positions; samples within 1 least-significant bit (−138 dB) |
-| Devon 2nd Run (original 4K MXF, USB drive): panel engine vs app | ⏳ running |
+| **Compact Timeline in Premiere** (plug-in 0.10.2) on Devon Night 2 | ✅ 181 clips, 47 blocks, 135.1 → 59.6 min, every clip where planned, original unchanged. Needed: actions created inside `lockedAccess` + `executeTransaction`, fresh objects after every edit |
+| Plug-in audio-file export vs app (synthetic) | ✅ same length and positions; samples within 1 least-significant bit (−138 dB) |
+| Devon 2nd Run (original 4K MXF, USB drive): plug-in engine vs app | ⏳ running |
 
 ## Synthetic tests (run after each change)
 
@@ -144,15 +144,15 @@ Generated with known offsets: 3 devices, steady ambience plus sparse events, a d
 - [x] Audio-only WAV export, in the installed app (1.2.0b1)
 - [x] Cancel during a sync, in the installed app (1.1.0b1/b2: worked but took ~1 min to stop on long files; fixed in 1.1.0b3)
 - [ ] New Sync / Help in the installed app (tested offscreen only; About confirmed in 1.2.0b1)
-- [x] Premiere Pro 2027 panel loads (Window → UXP Plugins) via UXP Developer Tool after enabling developer mode (panel 0.1)
-- [x] Panel sync inside Premiere with its own engine (Kishorn, Borthwick)
+- [x] Premiere Pro 2027 plug-in loads (Window → UXP Plugins) via UXP Developer Tool after enabling developer mode (plug-in 0.1)
+- [x] Plug-in sync inside Premiere with its own engine (Kishorn, Borthwick)
 - [x] Compact Timeline in Premiere (Devon Night 2)
 - [x] 1.2.0b2 DMG (run 44355109228) installs and shows version 1.2.0b2 (2026-11-18)
 - [x] 1.2.0b2 app: Mark Borthwick syncs 3 of 3 with video (fix confirmed), and the compact timeline checkbox writes `…_compact.xml` (2026-11-18)
-- [x] Panel `.ccx` (0.10.3) installs by double-click and works in Premiere 2027 (2026-11-18)
-- [ ] Panel audio-file export inside Premiere (UXP `fs.write`)
-- [ ] Panel *Import a synced folder* link
-- [ ] Panel on a large shoot of original camera files (Devon comparison running)
+- [x] Plug-in `.ccx` (0.10.3) installs by double-click and works in Premiere 2027 (2026-11-18)
+- [ ] Plug-in audio-file export inside Premiere (UXP `fs.write`)
+- [ ] Plug-in *Import a synced folder* link
+- [ ] Plug-in on a large shoot of original camera files (Devon comparison running)
 - [ ] First launch on a second Mac, recording macOS's exact wording
 - [ ] Mixed frame rates in one project (23.976 / 25 / 29.97 / 50)
 - [ ] Variable-frame-rate phone footage

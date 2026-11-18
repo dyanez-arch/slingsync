@@ -1,4 +1,4 @@
-// SlingSync panel engine: media access through the FFmpeg WebAssembly decoder (wasm/ssdec).
+// SlingSync plug-in engine: media access through the FFmpeg WebAssembly decoder (wasm/ssdec).
 // Works in Premiere (UXP) and in Node (tests). The caller supplies the decoder factory, the
 // .wasm bytes and an async ranged-read function, so this file has no platform code.
 //
@@ -9,7 +9,7 @@
 //   for (let b; (b = await media.read(4096)); ) { b.frames, b.channels, b.data (interleaved) }
 //   media.close()
 //
-// One file at a time; calls must not overlap (the panel analyses files one by one).
+// One file at a time; calls must not overlap (the plug-in analyses files one by one).
 (function (root) {
   "use strict";
 
@@ -57,6 +57,6 @@
   }
 
   const api = { create };
-  root.SlingMedia = api;                                   // panel: <script> global
+  root.SlingMedia = api;                                   // plug-in: <script> global
   if (typeof module !== "undefined" && module.exports) module.exports = api;   // Node tests
 })(typeof globalThis !== "undefined" ? globalThis : this);
