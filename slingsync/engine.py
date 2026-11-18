@@ -19,7 +19,12 @@ import av
 import numpy as np
 from scipy.ndimage import maximum_filter
 
-from . import __version__ as VERSION
+from . import __version__ as VERSION, full_version
+
+# Part of the analysis cache key. Bump ONLY when the analysis output changes (silence
+# rules, mono mix, fingerprint), not for every app version, so updating the app doesn't
+# force every project to be re-analysed.
+ANALYSIS_VERSION = "2"
 
 try:
     av.logging.set_level(av.logging.PANIC)
@@ -1044,7 +1049,7 @@ def run(project, ref_channels=None, fps=None, keep_silent=False, skip_silent_cli
             continue
         st = os.stat(c["path"])
         r = ref_channels.get(devices[c["dev"]])
-        key = f"{VERSION}|{c['path']}|{st.st_size}|{st.st_mtime}|{r}|{silence_db}|{flat_db}"
+        key = f"{ANALYSIS_VERSION}|{c['path']}|{st.st_size}|{st.st_mtime}|{r}|{silence_db}|{flat_db}"
         cache = os.path.join(cache_dir, hashlib.sha1(key.encode()).hexdigest()[:20])
         jobs[c["idx"]] = (c["path"], cache, r, silence_db, flat_db)
 
@@ -1135,7 +1140,7 @@ def write_report(path, name, seq_fps, nv, na, clips, lane_info, conflicts, skipp
     counts = {}
     for c in clips:
         counts[c["status"]] = counts.get(c["status"], 0) + 1
-    R = [f"SlingSync {VERSION} report - {name}",
+    R = [f"SlingSync {full_version()} report - {name}",
          f"Sequence: {seq_fps:.3f} fps, {nv} video tracks, {na} audio tracks", ""]
     R.append("Summary: " + ", ".join(f"{v} {k}" for k, v in sorted(counts.items())))
     R.append("")

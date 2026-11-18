@@ -15,6 +15,10 @@ for s in 16 32 128 256 512; do
 done
 iconutil -c icns build/icon.iconset -o build/SlingSync.icns
 
+# Build stamp shown in About and in reports: exact code revision and date
+SHA=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
+echo "BUILD = \"build ${SHA}, $(date -u +%Y-%m-%d)\"" > slingsync/_build.py
+
 # App bundle
 python3 -m PyInstaller --noconfirm --clean SlingSync.spec
 

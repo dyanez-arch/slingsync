@@ -88,9 +88,33 @@ The script:
 
 The architecture of the build matches the machine (or runner) it's built on.
 
+## Versioning
+
+Every build that reaches anyone (a test build or a release) has its own version, so a report or a bug can always be traced to the exact code that produced it.
+
+| Kind | Version | Example |
+|---|---|---|
+| Test build (made by hand from the Actions tab) | next release + `bN` | `1.1.0b1`, `1.1.0b2`, `1.1.0b3` |
+| Release (tagged, on the Releases page) | `x.y.z` | `1.1.0` |
+| Bug-fix release | bump the last number | `1.1.1` |
+| Release with new features | bump the middle number | `1.2.0` |
+
+The version lives in one place: `__version__` in `slingsync/__init__.py`. The CLI (`--version`), the app's About box, the report header and the DMG file name all read it.
+
+Each app build also gets a **build stamp**. `scripts/build_mac.sh` writes `slingsync/_build.py` (not committed) with the short commit hash and build date, and `full_version()` combines them: `1.1.0b3 (build cae50f3, 2026-11-18)`. Running from source shows `1.1.0b3 (from source)`. macOS's own version field (`CFBundleShortVersionString`) gets the plain `1.1.0` part; the full version goes in `CFBundleVersion`.
+
+The **analysis cache** key uses `ANALYSIS_VERSION` in `engine.py`, not the app version, so updating the app doesn't force re-analysis. Bump `ANALYSIS_VERSION` only when the analysis output changes (silence rules, mono mix, fingerprint).
+
+### For every test build
+
+1. Set `__version__` to the next `bN` (e.g. `1.1.0b3` → `1.1.0b4`).
+2. Add a `## 1.1.0b4 (test build, date)` section at the top of `CHANGELOG.md` listing what changed since the last build.
+3. Commit and push, then run **Build Mac app** from the Actions tab (or `gh workflow run build-mac.yml --ref main`). Add the run link to the changelog section.
+4. Record what gets tested with that build in [the testing log](testing.md), naming the version.
+
 ## Releasing
 
-1. Bump `__version__` in `slingsync/__init__.py`. This changes the app version, the DMG name and the cache key. Move the changelog's *Unreleased* section under the new version.
+1. Set `__version__` to the release number (e.g. `1.1.0`). In `CHANGELOG.md`, add a `## 1.1.0 (date)` section summarising everything since the last release; the test-build sections stay below it as history.
 2. Commit and push.
 3. Tag and push:
 
@@ -99,9 +123,9 @@ The architecture of the build matches the machine (or runner) it's built on.
    git push origin v1.1.0
    ```
 
-The **Build Mac app** workflow runs on any `v*` tag. On a `macos-15` (Apple Silicon) runner it installs requirements, smoke-tests with `python -m slingsync --help`, runs `build_mac.sh`, uploads the DMG as a workflow artifact, and creates a GitHub Release with the DMG attached.
+The tag must match `__version__`. The **Build Mac app** workflow runs on any `v*` tag. On a `macos-15` (Apple Silicon) runner it installs requirements, smoke-tests with `python -m slingsync --help`, runs `build_mac.sh`, uploads the DMG as a workflow artifact, and creates a GitHub Release with the DMG attached.
 
-It can also be run by hand from the **Actions** tab (`workflow_dispatch`). That builds the DMG as an artifact but doesn't create a release.
+Run by hand from the **Actions** tab (`workflow_dispatch`), it builds the DMG as an artifact but doesn't create a release. That's how test builds are made.
 
 To add an Intel build, add an Intel macOS runner label to the `matrix.runner` list in `.github/workflows/build-mac.yml`.
 

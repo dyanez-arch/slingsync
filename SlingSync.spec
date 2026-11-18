@@ -2,6 +2,8 @@
 import re
 
 version = re.search(r'__version__ = "(.+?)"', open("slingsync/__init__.py").read()).group(1)
+# macOS wants a plain x.y.z here; the full version (e.g. 1.1.0b3) goes in CFBundleVersion.
+short_version = re.match(r"\d+(\.\d+)*", version).group(0)
 
 a = Analysis(
     ["app.py"],
@@ -26,7 +28,7 @@ app = BUNDLE(
     bundle_identifier="io.github.slingsync",
     version=version,
     info_plist={
-        "CFBundleShortVersionString": version,
+        "CFBundleShortVersionString": short_version,
         "CFBundleVersion": version,
         "NSHighResolutionCapable": True,
         "LSMinimumSystemVersion": "12.0",

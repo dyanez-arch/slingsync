@@ -3,7 +3,7 @@ import argparse
 import sys
 import time
 
-from . import __version__
+from . import full_version
 from .engine import Cancelled, run
 
 
@@ -31,7 +31,7 @@ def main(argv=None):
     ap.add_argument("-v", "--verbose", action="store_true",
                     help="print details for every file, match and placement")
     ap.add_argument("--clear-cache", action="store_true", help="re-analyse every file")
-    ap.add_argument("--version", action="version", version=f"SlingSync {__version__}")
+    ap.add_argument("--version", action="version", version=f"SlingSync {full_version()}")
     a = ap.parse_args(argv)
 
     ref = {}

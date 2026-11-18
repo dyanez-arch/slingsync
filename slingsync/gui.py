@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QComb
                                QProgressBar, QPushButton, QSizePolicy, QTableWidget,
                                QTableWidgetItem, QTextBrowser, QVBoxLayout, QWidget)
 
-from . import __version__
+from . import __version__, full_version
 from . import engine
 
 FPS_CHOICES = [("Match first camera", None), ("23.976", 24000 / 1001), ("24", 24.0),
@@ -410,7 +410,8 @@ class MainWindow(QMainWindow):
         mark = QLabel()
         mark.setPixmap(logo(96))
         mark.setAlignment(Qt.AlignCenter)
-        name = QLabel(f"<h2>SlingSync</h2>Version {__version__}")
+        name = QLabel(f"<h2>SlingSync</h2>Version {full_version()}")
+        name.setTextInteractionFlags(Qt.TextSelectableByMouse)
         name.setAlignment(Qt.AlignCenter)
         body = QLabel(
             "Free multicam sync for Premiere Pro, by sound.<br><br>"

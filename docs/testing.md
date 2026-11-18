@@ -1,8 +1,10 @@
 # Testing log
 
-What has actually been run, on what, and what hasn't been tested yet. Newest first.
+What has actually been run, on what, and what hasn't been tested yet. Newest first. Each entry names the SlingSync version or build it was run with (see the [changelog](../CHANGELOG.md)).
 
 ## 2026-11-17: Installed app (test DMG from GitHub Actions) + Kishorn shoot, 111 clips: ✅ verified in Premiere
+
+**Build:** 1.1.0b1 (Actions run 44207696385, shown as "1.0.0" in the app).
 
 **App install (Dani, Apple Silicon Mac):** downloaded the test build artifact from GitHub Actions and dragged it to Applications. On first launch macOS showed its "can't verify… free of malware" warning with **Move to Trash / Done**. Clicked Done, then **System Settings → Privacy & Security → Open Anyway**, and it opened. Right-click → Open was not needed or offered. The README's first-launch steps were rewritten from this.
 
@@ -15,6 +17,8 @@ What has actually been run, on what, and what hasn't been tested yet. Newest fir
 **App UI additions tested offscreen** (window driven by script, screenshots checked): logo in header and About, New Sync / Sync Another Folder reset the window and a new folder loads and syncs, Help menu and quick guide, About box. A locally built `.app` contains the logo at the path the app reads it from and launches. **Not yet tried by hand** in the installed app.
 
 ## 2026-11-17: Scotland site visit, 131 clips, 5 devices: ✅ verified in Premiere
+
+**Build:** run from source (development code between 1.0.0 and 1.1.0b1).
 
 **Media:** device subfolders on an SSD, all proxies (no originals present):
 
@@ -41,6 +45,8 @@ What has actually been run, on what, and what hasn't been tested yet. Newest fir
 
 ## 2026-11-17: Interview, 2 cameras + polyWAV recorder: ✅ verified in Premiere
 
+**Build:** run from source (development code between 1.0.0 and 1.1.0b1).
+
 **Media:** 4 loose files in one folder (no device subfolders), on an internal-class SSD (APFS, PCIe):
 
 | File | What | Length | Audio |
@@ -63,6 +69,8 @@ What has actually been run, on what, and what hasn't been tested yet. Newest fir
 **Re-run after the Scotland changes (same day):** identical positions (to the millisecond). Also run in the app window (offscreen): the device list showed Cam A / Cam B as proxies and the "devices were guessed from file names" warning appeared. The sync completed with the same result. Before the fix, both camera↔recorder matches fell back to the coarse 16 ms result.
 
 ## 2026-11-17: Night shoot, 2 cameras + recorder + drone: ⚠️ incomplete
+
+**Build:** run from source (development code between 1.0.0 and 1.1.0b1).
 
 **Media:** device subfolders on a bus-powered USB hard drive (WD Elements, exFAT):
 - `Audio/`: 5 BWF WAVs, 3 ch, about 6 min total
