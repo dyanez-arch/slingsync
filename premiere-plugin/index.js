@@ -215,24 +215,21 @@ let pending = null;                           // { path, name, devs } waiting fo
 // event); picker.selectedIndex is the fallback. Item 0 is preselected.
 const choice = {};                            // picker id -> chosen item index
 function makePicker(id, labels, title) {
-  const picker = document.createElement("sp-picker");
-  picker.setAttribute("size", "s");
-  picker.id = id;
-  if (title) picker.setAttribute("title", title);
-  const menu = document.createElement("sp-menu");
-  menu.setAttribute("slot", "options");
-  labels.forEach((label, i) => {
-    const item = document.createElement("sp-menu-item");
-    item.textContent = label;
-    if (i === 0) item.setAttribute("selected", "");
-    menu.appendChild(item);
-  });
-  picker.appendChild(menu);
+  // Built as markup in one go, like Adobe's examples. The placeholder shows the default label
+  // even if Premiere draws no selected item; selectedIndex is set again once it's on screen.
+  const esc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+  const box = document.createElement("div");
+  box.innerHTML = `<sp-picker size="s" id="${esc(id)}" placeholder="${esc(labels[0])}"` +
+    (title ? ` title="${esc(title)}"` : "") + `><sp-menu slot="options">` +
+    labels.map((l, i) => `<sp-menu-item${i === 0 ? " selected" : ""}>${esc(l)}</sp-menu-item>`).join("") +
+    `</sp-menu></sp-picker>`;
+  const picker = box.firstElementChild || box.firstChild;
   choice[id] = 0;
   picker.addEventListener("change", (ev) => {
     const i = (ev && ev.target && typeof ev.target.selectedIndex === "number") ? ev.target.selectedIndex : picker.selectedIndex;
     if (typeof i === "number" && i >= 0) choice[id] = i;
   });
+  setTimeout(() => { try { if (!(picker.selectedIndex >= 0)) picker.selectedIndex = 0; } catch (e) { /* label stays */ } }, 0);
   return picker;
 }
 function chosen(id) {
