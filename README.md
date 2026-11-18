@@ -65,6 +65,10 @@ Anything that couldn't be synced by sound is marked orange (placed by its device
 
 **Sync using** (per device) lets you force syncing to a single channel, such as the ambient mic. The default, which mixes all live channels, is usually the most reliable.
 
+## Premiere Pro panel (in development)
+
+A SlingSync panel for **Premiere Pro 2027** is being built in [`premiere-panel/`](premiere-panel/README.md). Step 1, importing SlingSync results straight into the open project, is ready for testing.
+
 ## Command line
 
 ```

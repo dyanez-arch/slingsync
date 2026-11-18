@@ -7,6 +7,7 @@
 | [How it works](how-it-works.md) | The sync pipeline in detail: analysis, fingerprinting, matching, placement, XML |
 | [Development](development.md) | Code layout, running from source, testing and debugging, building the app, publishing releases |
 | [Troubleshooting](troubleshooting.md) | Common problems and what to do about them |
+| [Premiere panel](../premiere-panel/README.md) | The Premiere Pro 2027 panel prototype: status, how to load it |
 | [Testing log](testing.md) | What has been tested on real footage and in Premiere, and what hasn't yet |
 
 See also the [changelog](../CHANGELOG.md).

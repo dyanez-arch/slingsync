@@ -8,6 +8,7 @@ What was tested with each build is in the [testing log](docs/testing.md).
 
 ### Added
 - **Audio only / podcasts:** *Also export audio files* (app) or `--audio` (command line) writes one aligned 24-bit WAV per device channel to `<project>_audio`. Drop them all at 0:00 in any audio editor and they're in sync to the sample. No Premiere or video needed. Tested on a 5-hour, 111-clip shoot: 7 files, about 3 minutes, under 1 GB of memory. Placement is identical to the XML but not rounded to frames.
+- **Premiere Pro 2027 panel, prototype step 1** (`premiere-panel/`): imports a SlingSync XML into the open project from a shoot folder or file, and checks that the sequence appeared. Not yet tested in Premiere.
 - App: **Show Audio Files** button in the results; the quick guide explains audio-only use.
 
 ## 1.1.0 (2026-11-17)
