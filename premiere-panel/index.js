@@ -43,34 +43,44 @@ async function sequenceNames(project) {
 }
 
 async function importXml(nativePath, prefix) {
+  prefix = prefix || "";
   const project = await ppro.Project.getActiveProject();
   if (!project) {
     say("Open or create a Premiere project first.", "err");
     return false;
   }
-  say((prefix || "") + "Importing " + nativePath.split("/").pop() + "…");
-  const before = await sequenceNames(project);
+  const file = nativePath.split("/").pop();
+  const ids = async () => (await project.getSequences()).map((q) => String(q.guid));
+  const before = new Set(await ids());
   const root = await project.getRootItem();
-  let reported;
-  try {
-    reported = await project.importFiles([nativePath], true, root, false);
-  } catch (e) {
-    say((prefix || "") + "Premiere refused the import:\n" + e, "err");
-    return false;
+  // Don't wait on importFiles itself: it can take long (or never answer) while Premiere
+  // reads the media. Watch for the new sequence instead, and show how long it's taking.
+  let reported, failed = null, finishedAt = null;
+  project.importFiles([nativePath], true, root, false)
+    .then((r) => { reported = r; finishedAt = Date.now(); })
+    .catch((e) => { failed = e; finishedAt = Date.now(); });
+  const t0 = Date.now();
+  cancelRequested = false;
+  while (true) {
+    await sleep(500);
+
+    const added = (await project.getSequences()).filter((q) => !before.has(String(q.guid)));
+    if (added.length) {
+      say(prefix + "Imported: " + added.map((q) => q.name).join(", ") + "\nOpen it from the Project panel.", "ok");
+      return true;
+    }
+    if (failed) { say(prefix + "Premiere refused the import:\n" + failed, "err"); return false; }
+    const secs = Math.round((Date.now() - t0) / 1000);
+    if ((finishedAt && Date.now() - finishedAt > 10000) || cancelRequested || secs > 600) {
+      say(prefix + (cancelRequested ? "Stopped waiting for the import." : "Premiere " +
+          (reported ? "reported success" : "didn't finish the import") + " but no new sequence appeared.") +
+          "\nTry File → Import… with:\n" + nativePath, "err");
+      return false;
+    }
+    say(prefix + `Importing ${file} into Premiere… ${secs} s` + (secs >= 30
+      ? "\nPremiere is still reading the media. If a Premiere window is asking something, answer it." : ""));
+
   }
-  // importFiles has been reported to return true before (or without) importing, so check.
-  let added = [];
-  for (let i = 0; i < 20 && added.length === 0; i++) {
-    await sleep(250);
-    added = (await sequenceNames(project)).slice(before.length);
-  }
-  if (added.length) {
-    say((prefix || "") + "Imported: " + added.join(", ") + "\nOpen it from the Project panel.", "ok");
-    return true;
-  }
-  say((prefix || "") + "Premiere " + (reported ? "reported success" : "reported failure") +
-      " but no new sequence appeared.\nTry File → Import… with:\n" + nativePath, "err");
-  return false;
 }
 
 // Copy text to the clipboard. UXP's own setContent takes {"text/plain": …}; writeText can
