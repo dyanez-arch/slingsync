@@ -31,7 +31,9 @@
     .dev .count { color: #9a9a9a; font-size: 11px; }
     .dev sp-picker, .row sp-picker { flex: 0 0 auto; width: 215px; }
     .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 8px 0 2px; color: #9a9a9a; }
-    #startSync { font-weight: bold; }
+    #startSync, #choiceSort { font-weight: bold; }
+    #choice { margin-top: 10px; }
+    #choice button { margin-bottom: 2px; }
     #bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.12); margin-top: 12px; }
     #barFill { height: 6px; border-radius: 3px; background: #3b9cff; width: 0%; }
     #status { margin-top: 10px; padding: 10px; border-radius: 6px; background: rgba(255,255,255,0.06);
@@ -60,8 +62,8 @@
   <div class="muted hint"><b>Sync a Shoot Folder</b>: pick the shoot folder (one subfolder per camera
     or recorder), check what was found, then Sync. <b>Sync Selected Bin</b>: the same for clips
     already in this project: select the shoot's bin (one sub-bin per camera or recorder) first.
-    <b>Sync Timeline</b>: syncs the clips in the open sequence (each camera or recorder on its own
-    track) in a copy; if clips are selected, only those. <b>Compact Timeline</b>: makes a copy of the open sequence with every gap
+    <b>Sync Timeline</b>: syncs the clips in the open sequence in a copy; if clips are selected, only
+    those. If cameras or recorders share a track, it asks whether to put each on its own tracks. <b>Compact Timeline</b>: makes a copy of the open sequence with every gap
     where nothing was recording cut out, for review or a transcript.</div>
 
   <!-- step 2 of Sync a Shoot: what was found, and settings -->
@@ -86,6 +88,13 @@
 
   <div id="bar" hidden><div id="barFill"></div></div>
   <div id="status" hidden></div>
+  <!-- Sync Timeline: cameras or recorders share a track, so the user chooses -->
+  <div id="choice" hidden>
+    <button id="choiceSort">Put each camera and recorder on its own tracks</button>
+    <div class="muted small">A new sequence built from your clips. Whole clips: trims and cuts aren't kept.</div>
+    <button id="choiceKeep">Keep my tracks</button>
+    <div id="keepNote" class="muted small">A copy of your sequence with the clips moved into sync. Trims and cuts are kept.</div>
+  </div>
   <button id="cancel" hidden>Cancel</button>
 
   <div id="detailsWrap" hidden>

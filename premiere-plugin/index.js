@@ -967,10 +967,34 @@ async function devicesFromPaths(paths) {
   return devs.map((d) => SlingCore.deviceEntry(d.name, d.files)).filter((d) => d.files.length);
 }
 
+// Sync Timeline's question when devices share a track. Resolves "sort", "keep", or null (Cancel).
+function askTracks(text, canKeep) {
+  const box = document.getElementById("choice");
+  const sortBtn = document.getElementById("choiceSort"), keepBtn = document.getElementById("choiceKeep");
+  say(text);
+  keepBtn.hidden = !canKeep;
+  document.getElementById("keepNote").hidden = !canKeep;
+  box.hidden = false;
+  return new Promise((resolve) => {
+    let done = false;
+    const onSort = () => finish("sort"), onKeep = () => finish("keep");
+    const finish = (v) => {
+      if (done) return;
+      done = true; box.hidden = true; clearInterval(timer);
+      sortBtn.removeEventListener("click", onSort); keepBtn.removeEventListener("click", onKeep);
+      resolve(v);
+    };
+    sortBtn.addEventListener("click", onSort);
+    keepBtn.addEventListener("click", onKeep);
+    const timer = setInterval(() => { if (cancelRequested) finish(null); }, 200);
+  });
+}
+
 // ---- Sync Timeline: sync the clips in the open sequence (in a copy) ----
 // Devices come from the files (as a folder sync), not from the tracks. If every track holds one
 // device, the clips are moved into sync in a copy (trims and cuts kept). If devices share a track,
-// a new sequence is built with each camera/recorder on its own tracks (whole clips).
+// the user chooses: a new sequence with each camera/recorder on its own tracks (whole clips), or
+// keep the tracks (only possible if no clips would land on top of each other).
 async function syncTimeline() {
   const lines = [], log = (l) => lines.push(l);
   detailBox.textContent = "";
@@ -1040,17 +1064,28 @@ async function syncTimeline() {
     const plan = await planTimeline(srcGuid, (x) => (startOf.has(x.path) ? (startOf.get(x.path) * TICKS + x.inPt) : null), only);
     if (plan.overlaps.length) log("Clips would overlap on a track after syncing: " + plan.overlaps.slice(0, 10).join("; "));
     if (mixed.length || plan.overlaps.length) {
-      // devices share a track: build a new sequence with each camera/recorder on its own tracks
-      say("Cameras and recorders share tracks, so SlingSync is building a new sequence with each one on its own tracks…");
-      showBar(0.85);
-      const note = await buildFromBin(res, name, log);
+      // cameras or recorders share a track: ask whether to sort them onto their own tracks
+      const canKeep = !plan.overlaps.length;
       showBar(null);
-      const synced = res.counts.synced || 0;
-      say(`${note}\nEach camera and recorder is on its own tracks (${devices.length} devices), whole clips (trims and cuts in your timeline aren't carried over).\n` +
-          `${only ? `${only.size} selected clips, ` : ""}${synced} of ${res.files} files synced by sound` +
-          (res.files - synced ? `, ${res.files - synced} to check (see ${res.report.split("/").pop()})` : "") +
-          ".\nYour original sequence is unchanged.", "ok");
-      return;
+      const pick = await askTracks(
+        (mixed.length ? "Cameras and recorders share tracks:\n" + mixed.slice(0, 5).join("\n") + (mixed.length > 5 ? `\n… ${mixed.length - 5} more` : "") + "\n" : "") +
+        (canKeep ? "What should SlingSync do?"
+                 : "Keeping your tracks isn't possible: after syncing, clips would sit on top of each other:\n" +
+                   plan.overlaps.slice(0, 3).join("\n") + (plan.overlaps.length > 3 ? `\n… ${plan.overlaps.length - 3} more` : "")), canKeep);
+      log("choice: " + (pick || "cancel"));
+      if (!pick) throw new SlingCore.Cancelled();
+      if (pick === "sort") {
+        say("Building a new sequence with each camera and recorder on its own tracks…");
+        showBar(0.85);
+        const note = await buildFromBin(res, name, log);
+        showBar(null);
+        const synced = res.counts.synced || 0;
+        say(`${note}\nEach camera and recorder is on its own tracks (${devices.length} devices), whole clips (trims and cuts in your timeline aren't carried over).\n` +
+            `${only ? `${only.size} selected clips, ` : ""}${synced} of ${res.files} files synced by sound` +
+            (res.files - synced ? `, ${res.files - synced} to check (see ${res.report.split("/").pop()})` : "") +
+            ".\nYour original sequence is unchanged.", "ok");
+        return;
+      }
     }
     // 4. copy the sequence and move its clips into sync
     say("Moving the clips into sync in a copy of “" + name + "”…");

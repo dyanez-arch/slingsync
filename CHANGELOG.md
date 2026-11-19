@@ -6,7 +6,8 @@ What was tested with each build is in the [testing log](docs/testing.md).
 
 ## 1.2.3 (next)
 
-### Premiere Pro plug-in 0.15.0 – 0.18.1
+### Premiere Pro plug-in 0.15.0 – 0.18.2
+- 0.18.2: **Sync Timeline asks when cameras or recorders share a track**, naming the tracks: *Put each camera and recorder on its own tracks* (a new sequence from your clips, whole clips) or *Keep my tracks* (a copy with the clips moved into sync, trims and cuts kept). *Keep my tracks* is offered only when no clips would land on top of each other, and the panel says which would. Cancel leaves everything as it was. Tested against a simulated Premiere with every answer.
 - 0.18.1: **Cancel works in Sync Timeline after the analysis** (it stayed on "Stopping…" while the sequence was being built or clips moved) and in Compact Timeline. Cancel is also reset at the start, so a cancelled sync can't stop the next one.
 - 0.18.1: **Building the synced sequence is much faster**: it no longer re-reads the whole project and timeline for every clip it adds (that grew with the square of the number of clips). Progress shows each clip.
 - 0.18.1: **Fixed: linked camera clips could move twice.** To learn whether Premiere moves a camera clip's video and audio together, it moved one clip first; if that clip was a recorder file (nothing linked), every camera clip was then moved twice and ended in the wrong place (the final check would have reported it). Now each round moves one part per clip and re-reads, so linked or not, nothing moves twice. Found with a new simulation of linked clips.
