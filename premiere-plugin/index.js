@@ -662,6 +662,7 @@ async function compactActiveSequence(log) {
       log("linked clips move together: moving one clip at a time");
       let n = 0;
       while (pending.length && n < 5000) {
+        stopIfCancelled();
         n++;
         if (n % 5 === 0) { showBar(1 - pending.length / clips.length); say(`Compacting “${name}”… ${pending.length} clips to go`); }
         await movePending(1);
@@ -715,33 +716,29 @@ async function frameTicks(guid) {
   return TICKS / 25;
 }
 
-// Move clips so each one starts at goal.get(key). Like Compact Timeline: a first clip is moved
-// alone to see whether linked clips follow it; if not, the rest go in one edit.
+// Move clips so each one starts at goal.get(key). Premiere moves linked clips together (a
+// camera clip's video and audio), and which parts are linked can't be read. So each round moves
+// one part per clip (same file and start) in one edit, then re-reads: linked parts have arrived
+// with it, parts that aren't linked are still pending and go in the next round. Nothing is ever
+// moved twice. Normally 1-2 rounds.
 async function moveAllTo(guid, goal, order, log, label) {
   const read = async () => timelineItems(await activeProject(), guid);
   const pendingOf = (items) => items.filter((x) => goal.has(x.key) && x.start !== goal.get(x.key)).sort(order);
   const act = (x) => x.it.createMoveAction(ppro.TickTime.createWithTicks(String(goal.get(x.key) - x.start)));
-  const moveSome = (n) => edit(async (Q) => pendingOf(await timelineItems(Q, guid)).slice(0, n), (list) => list.map(act), "SlingSync: " + label);
-  let items = await read();
-  let pending = pendingOf(items);
-  if (!pending.length) return;
-  const was = new Map(items.map((x) => [x.key, x.start]));
-  const first = pending[0];
-  await moveSome(1);
-  items = await read();
-  const landed = items.find((x) => x.key === first.key);
-  const changed = items.filter((x) => x.start !== was.get(x.key)).length;
-  log(`${label}: probe ${first.key} → ${landed ? (landed.start / TICKS).toFixed(3) : "?"} s (wanted ${(goal.get(first.key) / TICKS).toFixed(3)}), ${changed} clip(s) moved`);
-  if (!landed || landed.start !== goal.get(first.key)) throw new Error("Premiere moved a clip differently than expected, so I stopped. Delete the “(synced)” copy; your original is unchanged.");
-  if (changed === 1) {
-    await moveSome(Infinity);
-  } else {
-    for (let n = 0; n < 20000; n++) {
-      pending = pendingOf(await read());
-      if (!pending.length) break;
-      if (n % 10 === 0) say(`${label}… ${pending.length} clips to go`);
-      await moveSome(1);
+  const groupOf = (x) => `${x.path}|${x.start}`;
+  const onePerClip = (list) => { const seen = new Set(); return list.filter((x) => !seen.has(groupOf(x)) && seen.add(groupOf(x))); };
+  let last = Infinity;
+  for (let round = 1; round <= 50; round++) {
+    stopIfCancelled();
+    const pending = pendingOf(await read());
+    if (!pending.length) return;
+    if (pending.length >= last) {
+      throw new Error(`Premiere didn't move ${pending.length} clips (${label}), so I stopped. Delete the “(synced)” copy; your original is unchanged.`);
     }
+    last = pending.length;
+    say(`${label}… ${pending.length} clip parts to go`);
+    await edit(async (Q) => onePerClip(pendingOf(await timelineItems(Q, guid))), (list) => list.map(act), "SlingSync: " + label);
+    log(`${label}: round ${round}, ${pending.length} parts pending before`);
   }
 }
 
@@ -817,6 +814,27 @@ async function clipItemsByPath(P) {             // media path -> ClipProjectItem
   await walk(await P.getRootItem());
   return map;
 }
+// Where each media clip sits: path -> bin names from the root. Walked once; afterwards a clip is
+// fetched fresh from just its own bin (much faster than walking the project for every clip).
+async function clipLocations(P) {
+  const map = new Map();
+  const walk = async (folder, names) => {
+    for (const x of await describe(await folder.getItems())) {
+      if (x.bin) await walk(x.bin, names.concat([x.name]));
+      else if (x.path && !map.has(normPath(x.path))) map.set(normPath(x.path), names);
+    }
+  };
+  await walk(await P.getRootItem(), []);
+  return map;
+}
+async function clipAt(P, names, path) {
+  const folder = names.length ? await findBin(P, names) : await P.getRootItem();
+  if (!folder) return null;
+  const hit = (await describe(await folder.getItems())).find((x) => !x.bin && x.path && normPath(x.path) === normPath(path));
+  return hit ? hit.item : null;
+}
+// Cancel: stop between steps of the timeline work too (the engine checks it during analysis)
+function stopIfCancelled() { if (cancelRequested) throw new SlingCore.Cancelled(); }
 
 async function buildFromBin(res, binName, log) {
   const clips = [...res.clips].sort((a, b) => a.start - b.start);
@@ -863,22 +881,33 @@ async function buildInto(outBin, seqName, clips, first, laneOf, log) {
   }
   if (!guid) throw new Error("Premiere didn't create the sequence");
   const res = { clips };
-  // 2. add the other clips after the end, each on its lane's tracks
+  // 2. add the other clips after the end, each on its lane's tracks. The end is tracked here
+  //    (each clip goes 1 s after the previous one ends) instead of re-reading the timeline.
+  const where = await clipLocations(await activeProject());
+  const its0 = await timelineItems(await activeProject(), guid);
+  let end = its0.length ? Math.max(...its0.map((x) => x.end)) : 0;
   let k = 0;
+  const t0 = Date.now();
   for (const c of clips) {
     if (c === first) continue;
-    if (++k % 10 === 0) say(`Building the sequence from your clips… ${k}/${clips.length - 1}`);
+    stopIfCancelled();
+    k++;
+    say(`Building the sequence from your clips… ${k}/${clips.length - 1}`);
+    showBar(0.85 + 0.05 * k / clips.length);
     const lane = laneOf(c);
+    const at = end + TICKS;
     await edit(async (Q) => {
       const seq = await sequenceById(Q, guid);
-      const its = await timelineItems(Q, guid);
-      const end = its.length ? Math.max(...its.map((x) => x.end)) : 0;
-      const item = (await clipItemsByPath(Q)).get(normPath(c.path));
+      let item = await clipAt(Q, where.get(normPath(c.path)) || [], c.path);
+      if (!item) item = (await clipItemsByPath(Q)).get(normPath(c.path));    // bins renamed or same names
       if (!item) throw new Error("couldn't find " + c.name + " in the project");
-      return { editor: ppro.SequenceEditor.getEditor(seq), item, end };
-    }, ({ editor, item, end }) => [editor.createInsertProjectItemAction(item, ppro.TickTime.createWithTicks(String(end + TICKS)), lane.v, lane.a, true)],
+      return { editor: ppro.SequenceEditor.getEditor(seq), item };
+    }, ({ editor, item }) => [editor.createInsertProjectItemAction(item, ppro.TickTime.createWithTicks(String(at)), lane.v, lane.a, true)],
     "SlingSync: add clip");
+    end = at + Math.ceil(c.duration + 1) * TICKS;
   }
+  log(`added ${k} clips in ${((Date.now() - t0) / 1000).toFixed(1)} s`);
+  stopIfCancelled();
   const built = await timelineItems(await activeProject(), guid);
   const missing = clips.filter((c) => !built.some((x) => normPath(x.path) === normPath(c.path)));
   log(`built: ${built.length} clip parts on the timeline; missing files: ${missing.length}`);
@@ -945,6 +974,7 @@ async function devicesFromPaths(paths) {
 async function syncTimeline() {
   const lines = [], log = (l) => lines.push(l);
   detailBox.textContent = "";
+  cancelRequested = false;
   try {
     const P0 = await activeProject();
     if (!P0) { say("Open a Premiere project first.", "err"); return; }
@@ -953,7 +983,9 @@ async function syncTimeline() {
     if (!seq0) { say("Open the sequence you want to sync first.", "err"); return; }
     const name = seq0.name, srcGuid = String(seq0.guid);
     // 0. clips selected in the timeline? Then only those are synced.
+    say("Reading the timeline…");
     let items0 = await timelineItems(P0, srcGuid);
+    log(`Timeline: ${items0.length} clip parts`);
     let only = null;
     try {
       const picked = await (await seq0.getSelection()).getTrackItems();
@@ -1004,6 +1036,7 @@ async function syncTimeline() {
     });
     const startOf = new Map(res.clips.map((c) => [c.path, c.start]));
     // 3. plan on the original first: if clips would collide, stop before changing anything
+    stopIfCancelled();
     const plan = await planTimeline(srcGuid, (x) => (startOf.has(x.path) ? (startOf.get(x.path) * TICKS + x.inPt) : null), only);
     if (plan.overlaps.length) log("Clips would overlap on a track after syncing: " + plan.overlaps.slice(0, 10).join("; "));
     if (mixed.length || plan.overlaps.length) {
@@ -1040,6 +1073,11 @@ async function syncTimeline() {
         (res.files - synced ? `, ${res.files - synced} to check (see ${res.report.split("/").pop()})` : "") +
         (plan.unplaced ? `.\n${plan.unplaced} clips had no sync position and were ${only ? "left where they were" : "put after the end"}` : "") +
         ".\nYour original sequence is unchanged.", "ok");
+  } catch (e) {
+    if (!(e && e.name === "Cancelled")) throw e;
+    log("cancelled");
+    say("Sync Timeline stopped. Your original sequence is unchanged.\n" +
+        "If a half-done “(synced)” sequence was left in the Project panel, delete it. Files already analysed are saved, so syncing again is faster.");
   } finally {
     detailBox.textContent = lines.join("\n");
     document.getElementById("detailsWrap").hidden = false;
@@ -1052,9 +1090,11 @@ document.getElementById("syncTimeline").addEventListener("click", () => guarded(
 document.getElementById("compactFolder").addEventListener("click", () => guarded(async () => {
   const lines = [];
   const log = (l) => lines.push(l);
+  cancelRequested = false;
   try { await compactActiveSequence(log); }
   catch (e) {
     showBar(null);
+    if (e && e.name === "Cancelled") { say("Compact Timeline stopped. Your original sequence is unchanged; delete the half-done “(compact)” copy."); detailBox.textContent = lines.join("\n"); document.getElementById("detailsWrap").hidden = false; return; }
     say("Compact Timeline failed:\n" + (e && e.message ? e.message : e), "err");
     lines.push("ERROR: " + (e && e.stack ? e.stack : e));
   }
