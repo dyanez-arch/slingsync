@@ -6,7 +6,8 @@ What was tested with each build is in the [testing log](docs/testing.md).
 
 ## 1.2.3 (next)
 
-### Premiere Pro plug-in 0.15.0 – 0.19.1
+### Premiere Pro plug-in 0.15.0 – 0.19.2
+- 0.19.2: Ripple Sync: the clip **follows the pointer** while you drag and the neighbour slides the other way; let go past a third of the way to swap, earlier to slide back. Swaps (dragged or clicked) slide into place, and a swap that matches nothing slides over and back. Tested in Chrome with simulated mouse events; not yet inside Premiere.
 - 0.19.1: Ripple Sync: **drag** a clip toward a neighbour to swap them (clicking still works). Tested in Chrome with simulated mouse drags; not yet inside Premiere.
 - 0.19.0: **Something to do while you wait.** While a sync runs, a quiet link under the progress bar opens *Ripple Sync*, a small match-3 game on a timeline: swap neighbouring audio clips to line up 3 with the same sound (colour and waveform) along a track or across tracks; they sync and are ripple-deleted. Level 1: 50 clips in 12 moves, then 10 more per level. The sync keeps running. Rules tested in Node (4,800 random moves: the board always settles with no leftover matches and always has a move; reshuffles when stuck); look checked in a browser; not yet inside Premiere.
 - 0.18.2: **Sync Timeline asks when cameras or recorders share a track**, naming the tracks: *Put each camera and recorder on its own tracks* (a new sequence from your clips, whole clips) or *Keep my tracks* (a copy with the clips moved into sync, trims and cuts kept). *Keep my tracks* is offered only when no clips would land on top of each other, and the panel says which would. Cancel leaves everything as it was. Tested against a simulated Premiere with every answer.

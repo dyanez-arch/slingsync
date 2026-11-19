@@ -2,7 +2,9 @@
 // progress bar). A timeline of audio clips: swap two neighbouring clips so that 3 or more with the
 // same sound (same colour and waveform) line up along a track or across tracks. They're synced and
 // ripple-deleted: the rest of the track slides left and new clips arrive from the right.
-// Plain DOM (no canvas), click to select and click a neighbour to swap: works in UXP panels.
+// Plain DOM (no canvas). Click a clip then a neighbour, or drag a clip onto a neighbour: the clip
+// follows the pointer and the neighbour slides the other way. Animations move the clips with
+// relative left/top in small timer steps (no CSS transforms or transitions, which UXP may not draw).
 (function (root) {
   "use strict";
   const ROWS = 6, COLS = 7;
@@ -121,7 +123,7 @@
       for (const h of KINDS[k].wave) { const bar = el("div", "rs-bar"); bar.style.height = (h * 2) + "px"; cell.appendChild(bar); }
       cell.addEventListener("click", () => { if (justDragged) { justDragged = false; return; } onClick(r, c); });
       // drag: press on a clip and move toward a neighbour (mouse and pointer events, whichever UXP sends)
-      const down = (ev) => { if (locked || over) return; drag = { r, c, x: ev.clientX, y: ev.clientY }; };
+      const down = (ev) => { if (locked || over || drag) return; drag = { r, c, x: ev.clientX, y: ev.clientY, moving: false, to: null, f: 0 }; };
       cell.addEventListener("pointerdown", down);
       cell.addEventListener("mousedown", down);
       return cell;
@@ -130,28 +132,77 @@
       const g = levelGoal(level);
       stats.textContent = `Level ${level} · synced ${Math.min(synced, g.goal)}/${g.goal} · ${moves} moves`;
       tl.innerHTML = "";
+      cells = []; grid = null;
       for (let r = 0; r < board.length; r++) {
         const row = el("div", "rs-track");
         row.appendChild(el("div", "rs-label", "A" + (r + 1)));
-        for (let c = 0; c < board[r].length; c++) row.appendChild(cellView(board[r][c], r, c, flash && flash.has(r + "," + c)));
+        cells.push([]);
+        for (let c = 0; c < board[r].length; c++) {
+          const cell = cellView(board[r][c], r, c, flash && flash.has(r + "," + c));
+          cells[r].push(cell); row.appendChild(cell);
+        }
         tl.appendChild(row);
       }
     }
+    // ---- clip movement ----
+    let cells = [], grid = null;
+    function measure() {                        // distance between neighbouring clips, measured while nothing is offset
+      if (!grid) {
+        let x = 0, y = 0;
+        try {
+          const a = cells[0][0].getBoundingClientRect(), bx = cells[0][1].getBoundingClientRect(), by = cells[1][0].getBoundingClientRect();
+          x = bx.left - a.left; y = by.top - a.top;
+        } catch (e) { /* use the fallback below */ }
+        grid = { x: x > 4 ? x : 36, y: y > 4 ? y : 35 };
+      }
+      return grid;
+    }
+    const setOff = (e, x, y) => { e.style.left = Math.round(x) + "px"; e.style.top = Math.round(y) + "px"; };
+    const step = (a, z) => { const g = measure(); return [(z[1] - a[1]) * g.x, (z[0] - a[0]) * g.y]; };
+    function place(a, z, f) {                   // f = 0: in place, 1: fully swapped
+      const [px, py] = step(a, z), ea = cells[a[0]][a[1]], ez = cells[z[0]][z[1]];
+      ea.style.zIndex = "2"; setOff(ea, px * f, py * f); setOff(ez, -px * f, -py * f);
+    }
+    function tween(ms, fn) {                    // eased 0..1 in ~60 fps timer steps
+      return new Promise((res) => {
+        const t0 = Date.now();
+        const tick = () => { const t = Math.min(1, (Date.now() - t0) / ms); fn(1 - (1 - t) * (1 - t)); if (t < 1) setTimeout(tick, 16); else res(); };
+        tick();
+      });
+    }
+    const slide = (a, z, from, to, ms) => tween(ms, (k) => place(a, z, from + (to - from) * k));
+    const wouldMatch = (a, z) => { const t = b.map((row) => row.slice()); swap(t, a, z); return findMatches(t).size > 0; };
     const wait = (ms) => new Promise((res) => setTimeout(res, ms));
     let drag = null, justDragged = false;
-    const move = (ev) => {
+    const move = (ev) => {                      // the clip follows the pointer, the neighbour slides the other way
       if (!drag || locked || over) return;
       const dx = ev.clientX - drag.x, dy = ev.clientY - drag.y;
-      if (Math.max(Math.abs(dx), Math.abs(dy)) < 12) return;      // a click, not a drag (yet)
-      const to = Math.abs(dx) > Math.abs(dy) ? [drag.r, drag.c + Math.sign(dx)] : [drag.r + Math.sign(dy), drag.c];
-      const from = [drag.r, drag.c];
-      drag = null;
-      if (to[0] < 0 || to[0] >= b.length || to[1] < 0 || to[1] >= b[0].length) return;
-      justDragged = true; setTimeout(() => { justDragged = false; }, 400);
-      sel = null;
-      doMove(from, to);
+      if (!drag.moving && Math.max(Math.abs(dx), Math.abs(dy)) < 6) return;   // still a click
+      if (!drag.moving) { drag.moving = true; measure(); if (sel) { sel = null; } }
+      const horiz = Math.abs(dx) >= Math.abs(dy), d = horiz ? dx : dy, dir = d < 0 ? -1 : 1;
+      const from = [drag.r, drag.c], to = horiz ? [drag.r, drag.c + dir] : [drag.r + dir, drag.c];
+      if (drag.to && (drag.to[0] !== to[0] || drag.to[1] !== to[1])) setOff(cells[drag.to[0]][drag.to[1]], 0, 0);
+      const g = measure(), p = horiz ? g.x : g.y;
+      if (to[0] < 0 || to[0] >= b.length || to[1] < 0 || to[1] >= b[0].length) {   // edge of the timeline: a little give, no swap
+        const o = Math.max(-0.2, Math.min(0.2, d / p)) * p;
+        drag.to = null; drag.f = 0; setOff(cells[from[0]][from[1]], horiz ? o : 0, horiz ? 0 : o);
+        return;
+      }
+      drag.to = to; drag.f = Math.min(1, Math.abs(d) / p);
+      place(from, to, drag.f);
     };
-    const up = () => { drag = null; };
+    const up = async () => {                    // let go: past a third of the way swaps, otherwise it slides back
+      if (!drag) return;
+      const d = drag; drag = null;
+      if (!d.moving) return;
+      justDragged = true; setTimeout(() => { justDragged = false; }, 400);
+      const from = [d.r, d.c];
+      if (d.to && d.f >= 0.33) { await doMove(from, d.to, d.f); return; }
+      locked = true;
+      if (d.to) await slide(from, d.to, d.f, 0, 120);
+      locked = false;
+      draw(b);
+    };
     for (const t of ["pointermove", "mousemove"]) tl.addEventListener(t, move);
     for (const t of ["pointerup", "mouseup", "mouseleave", "pointerleave"]) tl.addEventListener(t, up);
     async function onClick(r, c) {
@@ -160,12 +211,20 @@
       if (sel[0] === r && sel[1] === c) { sel = null; draw(b); return; }
       if (!neighbours(sel, [r, c])) { sel = [r, c]; draw(b); return; }
       const a = sel; sel = null;
+      draw(b);                                  // clear the highlight before the clips move
       await doMove(a, [r, c]);
     }
-    async function doMove(a, z) {
+    async function doMove(a, z, f0 = 0) {       // f0: how far a drag already moved the clips (0..1)
+      locked = true;
+      if (!wouldMatch(a, z)) {                  // slide over, then back: they don't match
+        await slide(a, z, f0, 1, Math.round(150 * (1 - f0)) + 30);
+        await slide(a, z, 1, 0, 180);
+        msg.textContent = "Out of sync: those don't line up 3 of a kind.";
+        locked = false; draw(b); return;
+      }
+      await slide(a, z, f0, 1, Math.round(150 * (1 - f0)) + 30);
       const res = play(b, a, z, rnd);
-      if (!res) { msg.textContent = "Out of sync: those don't line up 3 of a kind."; draw(b); return; }
-      locked = true; moves--;
+      moves--;
       for (const st of res.steps) { draw(st.before, st.hit); await wait(260); }
       synced += res.synced;
       msg.textContent = res.combos > 1 ? `Ripple combo ×${res.combos}! ${res.synced} clips synced.` : `${res.synced} clips synced.`;
