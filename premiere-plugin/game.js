@@ -119,7 +119,11 @@
       const cell = el("div", "rs-clip" + (flash ? " rs-flash" : "") + (sel && sel[0] === r && sel[1] === c ? " rs-sel" : ""));
       cell.style.backgroundColor = KINDS[k].color;
       for (const h of KINDS[k].wave) { const bar = el("div", "rs-bar"); bar.style.height = (h * 2) + "px"; cell.appendChild(bar); }
-      cell.addEventListener("click", () => onClick(r, c));
+      cell.addEventListener("click", () => { if (justDragged) { justDragged = false; return; } onClick(r, c); });
+      // drag: press on a clip and move toward a neighbour (mouse and pointer events, whichever UXP sends)
+      const down = (ev) => { if (locked || over) return; drag = { r, c, x: ev.clientX, y: ev.clientY }; };
+      cell.addEventListener("pointerdown", down);
+      cell.addEventListener("mousedown", down);
       return cell;
     }
     function draw(board, flash) {
@@ -134,13 +138,32 @@
       }
     }
     const wait = (ms) => new Promise((res) => setTimeout(res, ms));
+    let drag = null, justDragged = false;
+    const move = (ev) => {
+      if (!drag || locked || over) return;
+      const dx = ev.clientX - drag.x, dy = ev.clientY - drag.y;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 12) return;      // a click, not a drag (yet)
+      const to = Math.abs(dx) > Math.abs(dy) ? [drag.r, drag.c + Math.sign(dx)] : [drag.r + Math.sign(dy), drag.c];
+      const from = [drag.r, drag.c];
+      drag = null;
+      if (to[0] < 0 || to[0] >= b.length || to[1] < 0 || to[1] >= b[0].length) return;
+      justDragged = true; setTimeout(() => { justDragged = false; }, 400);
+      sel = null;
+      doMove(from, to);
+    };
+    const up = () => { drag = null; };
+    for (const t of ["pointermove", "mousemove"]) tl.addEventListener(t, move);
+    for (const t of ["pointerup", "mouseup", "mouseleave", "pointerleave"]) tl.addEventListener(t, up);
     async function onClick(r, c) {
       if (locked || over) return;
       if (!sel) { sel = [r, c]; draw(b); return; }
       if (sel[0] === r && sel[1] === c) { sel = null; draw(b); return; }
       if (!neighbours(sel, [r, c])) { sel = [r, c]; draw(b); return; }
       const a = sel; sel = null;
-      const res = play(b, a, [r, c], rnd);
+      await doMove(a, [r, c]);
+    }
+    async function doMove(a, z) {
+      const res = play(b, a, z, rnd);
       if (!res) { msg.textContent = "Out of sync: those don't line up 3 of a kind."; draw(b); return; }
       locked = true; moves--;
       for (const st of res.steps) { draw(st.before, st.hit); await wait(260); }
