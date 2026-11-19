@@ -32,7 +32,16 @@ function setBusy(b) {
   document.getElementById("compactFolder").disabled = b;
   document.getElementById("startSync").disabled = b;
   document.getElementById("cancel").hidden = !b;
+  // the waiting game: a quiet link while something runs (game.js)
+  document.getElementById("gameLink").hidden = !b || !document.getElementById("game").hidden;
 }
+document.getElementById("gameLink").addEventListener("click", (ev) => {
+  ev.preventDefault();
+  const box = document.getElementById("game");
+  document.getElementById("gameLink").hidden = true;
+  box.hidden = false;
+  RippleSync.open(box, { onClose: () => { box.hidden = true; box.innerHTML = ""; document.getElementById("gameLink").hidden = !busy; } });
+});
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 

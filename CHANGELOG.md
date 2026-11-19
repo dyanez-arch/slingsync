@@ -6,7 +6,8 @@ What was tested with each build is in the [testing log](docs/testing.md).
 
 ## 1.2.3 (next)
 
-### Premiere Pro plug-in 0.15.0 – 0.18.2
+### Premiere Pro plug-in 0.15.0 – 0.19.0
+- 0.19.0: **Something to do while you wait.** While a sync runs, a quiet link under the progress bar opens *Ripple Sync*, a small match-3 game on a timeline: swap neighbouring audio clips to line up 3 with the same sound (colour and waveform) along a track or across tracks; they sync and are ripple-deleted. Level 1: 50 clips in 12 moves, then 10 more per level. The sync keeps running. Rules tested in Node (4,800 random moves: the board always settles with no leftover matches and always has a move; reshuffles when stuck); look checked in a browser; not yet inside Premiere.
 - 0.18.2: **Sync Timeline asks when cameras or recorders share a track**, naming the tracks: *Put each camera and recorder on its own tracks* (a new sequence from your clips, whole clips) or *Keep my tracks* (a copy with the clips moved into sync, trims and cuts kept). *Keep my tracks* is offered only when no clips would land on top of each other, and the panel says which would. Cancel leaves everything as it was. Tested against a simulated Premiere with every answer.
 - 0.18.1: **Cancel works in Sync Timeline after the analysis** (it stayed on "Stopping…" while the sequence was being built or clips moved) and in Compact Timeline. Cancel is also reset at the start, so a cancelled sync can't stop the next one.
 - 0.18.1: **Building the synced sequence is much faster**: it no longer re-reads the whole project and timeline for every clip it adds (that grew with the square of the number of clips). Progress shows each clip.

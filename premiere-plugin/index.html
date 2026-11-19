@@ -42,6 +42,22 @@
     #status.err { border-left: 3px solid #e5534b; }
     #about p { margin: 8px 0; line-height: 1.5; }
     a { color: #3b9cff; }
+    /* Ripple Sync, the waiting game (game.js) */
+    #gameLink { display: block; margin-top: 4px; color: #6f6f6f; text-decoration: none; }
+    #game { margin-top: 10px; padding: 8px; border-radius: 6px; background: #1b1b1b; border: 1px solid rgba(255,255,255,0.1); }
+    .rs-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+    .rs-title { font-weight: bold; }
+    .rs-stats { color: #9a9a9a; font-size: 11px; }
+    .rs-timeline { background: #262626; padding: 3px; border-radius: 4px; }
+    .rs-track { display: flex; align-items: center; margin: 2px 0; padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .rs-label { width: 22px; flex: 0 0 auto; color: #8a8a8a; font-size: 10px; text-align: center; }
+    .rs-clip { flex: 1 1 0; min-width: 0; height: 30px; margin: 0 1px; border-radius: 3px; display: flex; align-items: center;
+               justify-content: center; border: 2px solid transparent; box-sizing: border-box; }
+    .rs-bar { width: 2px; margin: 0 1px; background: rgba(0,0,0,0.55); border-radius: 1px; }
+    .rs-sel { border-color: #ffffff; }
+    .rs-flash { opacity: 0.3; border-color: #ffffff; }
+    .rs-msg { margin-top: 6px; min-height: 28px; font-size: 11px; color: #c8c8c8; }
+    .rs-foot { display: flex; justify-content: space-between; }
     hr { border: none; border-top: 1px solid rgba(255,255,255,0.12); margin: 14px 0 6px; }
   </style>
 </head>
@@ -96,6 +112,8 @@
     <div id="keepNote" class="muted small">A copy of your sequence with the clips moved into sync. Trims and cuts are kept.</div>
   </div>
   <button id="cancel" hidden>Cancel</button>
+  <a href="#" id="gameLink" class="small muted" hidden>♪ Waiting? Sync a few clips yourself</a>
+  <div id="game" hidden></div>
 
   <div id="detailsWrap" hidden>
     <a href="#" id="detailsToggle" class="small">Show details</a>
@@ -130,6 +148,7 @@
   <script src="engine/core.js"></script>
   <script src="engine/run.js"></script>
   <script src="engine/uxp_platform.js"></script>
+  <script src="game.js"></script>
   <script src="index.js"></script>
 </body>
 </html>

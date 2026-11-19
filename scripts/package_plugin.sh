@@ -10,7 +10,7 @@ OUT="$HERE/dist/SlingSync-PremierePro-plugin-$VER.ccx"
 mkdir -p "$HERE/dist"
 rm -f "$OUT"
 cd "$SRC"
-FILES=(manifest.json index.html index.js icons engine/core.js engine/run.js engine/media.js
+FILES=(manifest.json index.html index.js game.js icons engine/core.js engine/run.js engine/media.js
        engine/uxp_platform.js wasm/ssdec.js wasm/ssdec.wasm)
 for f in "${FILES[@]}"; do [ -e "$f" ] || { echo "missing $f"; exit 1; }; done
 # every <script src> in index.html must be packaged
