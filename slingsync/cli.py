@@ -18,6 +18,9 @@ def main(argv=None):
     ap.add_argument("--fps", type=float, help="sequence frame rate (default: first camera)")
     ap.add_argument("--ref-channel", action="append", default=[], metavar="DEVICE=N",
                     help="only listen to channel N of DEVICE for syncing, e.g. Zoom1=3")
+    ap.add_argument("--exclude", action="append", default=[], metavar="DEVICE",
+                    help="leave a device folder out of the sync, e.g. --exclude Proxies "
+                         "(repeat for more; names as listed by the app)")
     ap.add_argument("--silence-db", type=float, default=-60.0,
                     help="channels quieter than this (dBFS) count as silent (default -60)")
     ap.add_argument("--flat-db", type=float, default=3.0,
@@ -65,7 +68,7 @@ def main(argv=None):
                   flat_db=a.flat_db, min_votes=a.min_votes, workers=a.workers,
                   output=a.output, name=a.name, clear_cache=a.clear_cache, progress=progress,
                   stems=a.audio, stems_dir=a.audio_dir, stems_rate=a.audio_rate,
-                  compact=a.compact, log=(lambda m: print(m, flush=True)) if a.verbose else None)
+                  compact=a.compact, exclude=a.exclude, log=(lambda m: print(m, flush=True)) if a.verbose else None)
     except (ValueError, Cancelled) as e:
         sys.exit(str(e) or "Cancelled")
     print()

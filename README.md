@@ -57,7 +57,7 @@ From then on SlingSync opens normally. (On older macOS versions, right-clicking 
    ```
 
 2. Open SlingSync and drop the project folder onto the window.
-3. Check the device list, then click **Sync**.
+3. Check the device list (untick any folder to leave it out, such as a proxies folder), then click **Sync**.
 4. In Premiere, choose **File → Import…** and pick the `…_synced.xml` file that appears in the project folder.
 5. For the next shooting day, click **Sync Another Folder** (or **New Sync**). The **Help** button opens a quick guide inside the app.
 

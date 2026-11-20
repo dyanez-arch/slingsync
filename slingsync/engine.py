@@ -1179,14 +1179,15 @@ def device_channels(files, sample=3):
 def run(project, ref_channels=None, fps=None, keep_silent=False, skip_silent_clips=False,
         silence_db=-60.0, flat_db=3.0, min_votes=12, workers=None, output=None, name=None,
         clear_cache=False, progress=None, cancel=None, log=None, stems=False, stems_dir=None,
-        stems_rate=None, compact=False):
+        stems_rate=None, compact=False, exclude=()):
     """Sync a project folder (one subfolder per device). Returns a result dict.
 
     progress(fraction 0..1, message) is called along the way; set the threading.Event
     `cancel` to stop early (raises Cancelled). log(text), if given, receives detailed
     diagnostics (per-file analysis, every match, placement). With stems=True, aligned
     WAV files for any audio editor are also written (to stems_dir, default
-    <project>/<name>_audio)."""
+    <project>/<name>_audio). Devices named in `exclude` (as scan_devices names them, e.g.
+    'Proxies' or 'Audio - Boom') are left out of the sync."""
     say = progress or (lambda f, m: None)
     log = log or (lambda s: None)
     if stems:                                    # leave the last part of the bar for writing audio
@@ -1201,6 +1202,12 @@ def run(project, ref_channels=None, fps=None, keep_silent=False, skip_silent_cli
 
     say(0.0, "Looking for media...")
     devs = scan_devices(project)
+    left = [d["name"] for d in devs if d["name"] in set(exclude or ())]
+    if left:
+        devs = [d for d in devs if d["name"] not in left]
+        log("Left out by you: " + ", ".join(left))
+        if not devs:
+            raise ValueError("Every folder was left out: tick at least one to sync.")
     devices = [d["name"] for d in devs]
     files = [(i, f) for i, d in enumerate(devs) for f in d["files"]]
     if not devs:

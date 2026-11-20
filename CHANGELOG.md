@@ -6,6 +6,9 @@ What was tested with each build is in the [testing log](docs/testing.md).
 
 ## 1.2.3 (next)
 
+### Desktop app
+- **Leave folders out of a sync**: every device in the list has a tick box; untick a folder (a proxies folder next to the originals, exports, anything you don't want on the timeline) and it isn't read or synced. The status line says how many are left out; with none ticked, Sync is off. Command line: `--exclude NAME`. Tested on a test shoot with a separate `Proxies` folder: with it unticked (in the app, run hidden, and on the command line) the XML is identical to a sync of the same shoot without that folder.
+
 ### Premiere Pro plug-in 0.15.0 – 0.19.2
 - 0.19.2: Ripple Sync: the clip **follows the pointer** while you drag and the neighbour slides the other way; let go past a third of the way to swap, earlier to slide back. Swaps (dragged or clicked) slide into place, and a swap that matches nothing slides over and back. Tested in Chrome with simulated mouse events; not yet inside Premiere.
 - 0.19.1: Ripple Sync: **drag** a clip toward a neighbour to swap them (clicking still works). Tested in Chrome with simulated mouse drags; not yet inside Premiere.

@@ -82,12 +82,15 @@ SlingSync recognises Premiere-style proxies (`…_Proxy.mov`, `…_proxy.mp4`, u
 - **Original and proxy both present:** the proxy is skipped and the original is used.
 - **Only the proxy present:** the proxy is used. The sequence will then point at the proxy files.
 
+This works when the proxies sit inside the camera's own folder. If the proxies are in a separate folder (for example `Shoot/Proxies/`), it shows up as its own device: untick it in the device table.
+
 A proxy's own file date is when it was transcoded, so SlingSync never uses it. Many proxies still carry the original shoot date or the camera's timecode inside them, and those are used. A proxy with no usable date that shares no sound with another device is parked at the end of the timeline (red) instead of being placed at a wrong time.
 
 ## 3. Sync
 
 1. Open SlingSync and drop the project folder on the window (or click **Choose Folder…**).
 2. Check the device table: name, number of files, Camera or Audio, channel count, and whether proxies are being used. If there were no subfolders, the devices were guessed from file names, so make sure they're right.
+   - **Leave a folder out:** untick it. Use this for anything in the shoot folder you don't want on the timeline: a proxies folder next to the originals, exports, a test card. Unticked folders aren't read or analysed. Command line: `--exclude "Folder name"` (repeat for more).
 3. Optionally set, per device, **Sync using**:
    - **All live channels (recommended)**: mixes every non-silent channel at equal level.
    - **Only channel N**: listen to one channel only, for example an ambient or scratch mic. If that channel is silent in a particular file, the other channels are used for that file.

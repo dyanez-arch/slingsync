@@ -54,8 +54,8 @@ SlingSync then guesses the devices from the file names, so check the device list
 used when it isn't (the sequence then points at the proxies).</p>
 
 <h3>2. Sync</h3>
-<p>Drop the folder on the window (or click <b>Choose Folder…</b>), check the device list,
-then click <b>Sync</b>. The first sync of a folder reads every file. Syncing the same folder
+<p>Drop the folder on the window (or click <b>Choose Folder…</b>), check the device list
+(untick any folder you want left out, such as proxies), then click <b>Sync</b>. The first sync of a folder reads every file. Syncing the same folder
 again is much faster, because the analysis is saved in a hidden <i>.slingsync_cache</i>
 folder inside it.</p>
 <p><b>Sync using</b> lets you pick one channel of a device (e.g. the ambient mic). The default,
@@ -299,6 +299,9 @@ class MainWindow(QMainWindow):
         self.table.setSelectionMode(QAbstractItemView.NoSelection)
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.setMinimumHeight(140)
+        self.table.setToolTip("Untick a folder to leave it out of the sync, for example a "
+                              "proxies folder next to the originals.")
+        self.table.itemChanged.connect(self._device_ticked)
         lay.addWidget(self.table)
 
         opts = QHBoxLayout()
@@ -505,11 +508,15 @@ class MainWindow(QMainWindow):
 
     def show_devices(self, devs):
         self.devices = devs
+        self.table.blockSignals(True)
         self.table.setRowCount(len(devs))
         total = 0
         for r, d in enumerate(devs):
             total += len(d["files"])
-            self.table.setItem(r, 0, QTableWidgetItem(d["name"]))
+            item = QTableWidgetItem(d["name"])         # tick box: untick to leave the folder out
+            item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Checked)
+            self.table.setItem(r, 0, item)
             n = QTableWidgetItem(str(len(d["files"])))
             n.setTextAlignment(Qt.AlignCenter)
             self.table.setItem(r, 1, n)
@@ -526,26 +533,50 @@ class MainWindow(QMainWindow):
                 box.addItem(f"Only channel {ch}")
             box.setEnabled(d["channels"] > 1)
             self.table.setCellWidget(r, 3, box)
+        self.table.blockSignals(False)
         if not devs:
             self.status.setText("No video or audio files found. Put each camera or recorder's "
                                 "files in its own subfolder inside this folder, then drop it again.")
         elif total == 0:
             self.status.setText("No video or audio files found in the subfolders.")
         else:
-            loose = not any(os.path.isdir(os.path.join(self.folder or "", d["name"])) for d in devs)
-            self.status.setText(f"{total} files in {len(devs)} devices. Ready to sync."
+            self._device_ticked()
+
+    def _ticked(self):
+        """Indexes of the devices whose tick box is on."""
+        return [r for r in range(self.table.rowCount())
+                if self.table.item(r, 0) and self.table.item(r, 0).checkState() == Qt.Checked]
+
+    def _device_ticked(self, item=None):
+        if item is not None and item.column() != 0:
+            return
+        on = self._ticked()
+        for r in range(self.table.rowCount()):
+            box = self.table.cellWidget(r, 3)
+            if box:
+                box.setEnabled(r in on and self.devices[r]["channels"] > 1)
+        files = sum(len(self.devices[r]["files"]) for r in on)
+        off = len(self.devices) - len(on)
+        loose = not any(os.path.isdir(os.path.join(self.folder or "", d["name"])) for d in self.devices)
+        if not on:
+            self.status.setText("Every folder is unticked: tick at least one to sync.")
+        else:
+            self.status.setText(f"{files} files in {len(on)} devices. Ready to sync."
+                                + (f"  {off} left out." if off else "")
                                 + ("  No device subfolders, so devices were guessed from file "
                                    "names: check the list." if loose else ""))
-            self.sync_btn.setEnabled(True)
+        self.sync_btn.setEnabled(bool(on))
 
     # ---- syncing ----
     def start_sync(self):
         ref = {}
+        on = self._ticked()
         for r, d in enumerate(self.devices):
             i = self.table.cellWidget(r, 3).currentIndex()
-            if i > 0:
+            if i > 0 and r in on:
                 ref[d["name"]] = i
-        kwargs = dict(project=self.folder, ref_channels=ref,
+        exclude = [d["name"] for r, d in enumerate(self.devices) if r not in on]
+        kwargs = dict(project=self.folder, ref_channels=ref, exclude=exclude,
                       fps=FPS_CHOICES[self.fps.currentIndex()][1],
                       keep_silent=not self.drop_dead.isChecked(),
                       skip_silent_clips=self.drop_each.isChecked(),
