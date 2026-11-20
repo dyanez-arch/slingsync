@@ -1040,8 +1040,12 @@
     if (m && stripChars(m[1])) return stripChars(m[1]);
     return stem;
   }
-  function deviceEntry(name, found) {
-    const originals = new Set(found.filter((f) => proxyBase(f) === null).map((f) => stemOf(f).toLowerCase()));
+  // names of the files that aren't proxies (engine._originals)
+  const originalsOf = (found) => new Set(found.filter((f) => proxyBase(f) === null).map((f) => stemOf(f).toLowerCase()));
+  // A proxy is skipped when its original is in `originals` (default: this device's own files;
+  // scanDevices passes the whole shoot's, so a separate 'Cam A - Proxies' folder is skipped too)
+  function deviceEntry(name, found, originals) {
+    originals = originals || originalsOf(found);
     const files = found.filter((f) => !originals.has(proxyBase(f)));
     return { name, files, skipped_proxies: found.length - files.length,
       proxies_used: files.filter((f) => proxyBase(f) !== null).length,
@@ -1055,7 +1059,7 @@
 
   const api = { SR, FRAME_S, CACHE_DIR, EMPTY_MAX_S, VIDEO_EXT, AUDIO_EXT, Cancelled, pyRound, pyFixed, percentile, median,
     parseIso, dateCandidates, parseTc, resolveDates, probeFromInfo, fft, fingerprint, matchAll, refine,
-    place, buildXml, compactClips, rateXml, tc, reportText, proxyBase, looseDevice, deviceEntry, isAudioExport, isMedia, skipDir,
+    place, buildXml, compactClips, rateXml, tc, reportText, proxyBase, looseDevice, deviceEntry, originalsOf, isAudioExport, isMedia, skipDir,
     basename, ext, pyQuote, utf8Decode };
   root.SlingCore = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;

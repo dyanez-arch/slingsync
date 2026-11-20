@@ -79,10 +79,10 @@ Check the device list before you click **Sync**. If the grouping is wrong, put t
 
 SlingSync recognises Premiere-style proxies (`…_Proxy.mov`, `…_proxy.mp4`, usually in a `Proxies` folder):
 
-- **Original and proxy both present:** the proxy is skipped and the original is used.
+- **Original and proxy both present:** the proxy is skipped and the original is used. The original can be anywhere in the shoot folder: next to the proxy, or in another folder (`HiRes/Cam A/C1350.MP4` with `Cam A - Proxies/C1350_proxy.mp4`). A proxies folder whose originals are all there disappears from the device list.
 - **Only the proxy present:** the proxy is used. The sequence will then point at the proxy files.
 
-This works when the proxies sit inside the camera's own folder. If the proxies are in a separate folder (for example `Shoot/Proxies/`), it shows up as its own device: untick it in the device table.
+Proxies are recognised by the end of their name (`_Proxy`, ` Proxy`, `-Proxy`, any case). Proxies named some other way show up as their own device: untick that folder in the device table.
 
 A proxy's own file date is when it was transcoded, so SlingSync never uses it. Many proxies still carry the original shoot date or the camera's timecode inside them, and those are used. A proxy with no usable date that shares no sound with another device is parked at the end of the timeline (red) instead of being placed at a wrong time.
 

@@ -520,9 +520,11 @@ async function devicesFromSelectedBin() {
   } else if (loose.length) {
     note = `${loose.length} clips lying directly in “${shoot.name}” (not in a device bin) are left out.`;
   }
-  const all = devs.flatMap((d) => d.files);
+  const originals = SlingCore.originalsOf(devs.flatMap((d) => d.files));   // proxies: original in any device bin counts
+  const kept = devs.map((d) => SlingCore.deviceEntry(d.name, d.files, originals)).filter((d) => d.files.length);
+  const all = kept.flatMap((d) => d.files);
   const projDir = P.path.split("/").slice(0, -1).join("/");
-  return { name: shoot.name, devs: devs.filter((d) => d.files.length), root: commonDir(all), outDir: projDir + "/SlingSync", note };
+  return { name: shoot.name, devs: kept, root: commonDir(all), outDir: projDir + "/SlingSync", note };
 }
 
 document.getElementById("syncBin").addEventListener("click", () => guarded(async () => {
@@ -973,7 +975,8 @@ async function devicesFromPaths(paths) {
     extra.get(k).push(p);
   }
   for (const [k, fs_] of extra) devs.push({ name: k, files: fs_ });
-  return devs.map((d) => SlingCore.deviceEntry(d.name, d.files)).filter((d) => d.files.length);
+  const originals = SlingCore.originalsOf(devs.flatMap((d) => d.files));   // proxies: original anywhere counts
+  return devs.map((d) => SlingCore.deviceEntry(d.name, d.files, originals)).filter((d) => d.files.length);
 }
 
 // Sync Timeline's question when devices share a track. Resolves "sort", "keep", or null (Cancel).

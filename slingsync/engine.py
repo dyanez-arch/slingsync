@@ -1074,9 +1074,17 @@ def _media_files(folder, recursive=True):
     return found
 
 
-def _device_entry(name, found):
-    originals = {os.path.splitext(os.path.basename(f))[0].lower()
-                 for f in found if proxy_base(f) is None}
+def _originals(found):
+    """Lower-case names (no extension) of the files that aren't proxies."""
+    return {os.path.splitext(os.path.basename(f))[0].lower() for f in found if proxy_base(f) is None}
+
+
+def _device_entry(name, found, originals=None):
+    """A device's files. A proxy is skipped when its original is in `originals` (by default
+    this device's own files; scan_devices passes the whole shoot's, so a separate
+    'Cam A - Proxies' folder next to 'HiRes/Cam A' is skipped too)."""
+    if originals is None:
+        originals = _originals(found)
     files = [f for f in found if proxy_base(f) not in originals]
     return {"name": name, "files": files,
             "skipped_proxies": len(found) - len(files),
@@ -1152,18 +1160,23 @@ def scan_devices(project):
         sub = name.split(" - ", 1)[1]
         if sub in found and sub in devices and names_of[name] & names_of[sub]:
             found[sub] = found[sub] + found.pop(name)
+    # Proxies are skipped when their original is anywhere in the shoot, not only in the same
+    # folder: a 'Cam A - Proxies' folder next to 'HiRes/Cam A' then disappears from the list.
+    originals = _originals(f for fs in found.values() for f in fs)
     out = []
     for name, files in found.items():
-        entry = _device_entry(name, files)
+        entry = _device_entry(name, files, originals)
         if entry["files"]:
             out.append(entry)
     if out:
         return out
     # No device subfolders: group files lying in the project folder by their names.
     groups = {}
-    for f in _media_files(project, recursive=False):
+    loose = _media_files(project, recursive=False)
+    for f in loose:
         groups.setdefault(_loose_device(f), []).append(f)
-    return [e for e in (_device_entry(n, fs) for n, fs in sorted(groups.items())) if e["files"]]
+    originals = _originals(loose)
+    return [e for e in (_device_entry(n, fs, originals) for n, fs in sorted(groups.items())) if e["files"]]
 
 
 def device_channels(files, sample=3):

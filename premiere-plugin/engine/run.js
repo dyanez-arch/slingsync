@@ -94,19 +94,23 @@
         found.delete(name);
       }
     }
+    // proxies are skipped when their original is anywhere in the shoot, not only in the same folder
+    const originals = C.originalsOf([...found.values()].flat());
     const out = [];
     for (const [name, files] of found) {
-      const entry = C.deviceEntry(name, files);
+      const entry = C.deviceEntry(name, files, originals);
       if (entry.files.length) out.push(entry);
     }
     if (out.length) return out;
     const groups = new Map();
-    for (const f of await mediaFiles(P, project, false)) {
+    const loose = await mediaFiles(P, project, false);
+    for (const f of loose) {
       const k = C.looseDevice(f);
       if (!groups.has(k)) groups.set(k, []);
       groups.get(k).push(f);
     }
-    return [...groups.keys()].sort().map((k) => C.deviceEntry(k, groups.get(k))).filter((e) => e.files.length);
+    const looseOriginals = C.originalsOf(loose);
+    return [...groups.keys()].sort().map((k) => C.deviceEntry(k, groups.get(k), looseOriginals)).filter((e) => e.files.length);
   }
 
   // Devices with their channel counts, for the settings step (gui.ScanWorker / engine.device_channels)
