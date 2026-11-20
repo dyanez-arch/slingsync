@@ -7,6 +7,7 @@ What was tested with each build is in the [testing log](docs/testing.md).
 ## 1.2.3 (next)
 
 ### Desktop app
+- Test build **1.2.3b1** (made by hand, not on the Releases page) has this change.
 - **Leave folders out of a sync**: every device in the list has a tick box; untick a folder (a proxies folder next to the originals, exports, anything you don't want on the timeline) and it isn't read or synced. The status line says how many are left out; with none ticked, Sync is off. Command line: `--exclude NAME`. Tested on a test shoot with a separate `Proxies` folder: with it unticked (in the app, run hidden, and on the command line) the XML is identical to a sync of the same shoot without that folder.
 
 ### Premiere Pro plug-in 0.15.0 – 0.19.2
